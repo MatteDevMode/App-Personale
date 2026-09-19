@@ -14,299 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg-page: #0D1017;
-    --bg-sidebar: #10141C;
-    --bg-card: #161B25;
-    --bg-card-hover: #1B2130;
-    --accent: #7C8CF8;
-    --accent-dim: #4B4F8C;
-    --accent-wash: rgba(124, 140, 248, 0.12);
-    --teal: #3FCFA0;
-    --teal-wash: rgba(63, 207, 160, 0.12);
-    --text-primary: #ECEEF4;
-    --text-secondary: #9BA3B8;
-    --text-muted: #5E6779;
-    --border: rgba(255, 255, 255, 0.07);
-    --border-strong: rgba(255, 255, 255, 0.14);
-    --font-head: 'Manrope', sans-serif;
-    --font-body: 'Inter', sans-serif;
-    --radius: 10px;
-    --radius-lg: 16px;
-  }
-
-  :root[data-theme="light"] {
-    --bg-page: #F6F5F1;
-    --bg-sidebar: #EFEEE8;
-    --bg-card: #FFFFFF;
-    --bg-card-hover: #FBFAF6;
-    --accent: #5A63D8;
-    --accent-dim: #C3C7F2;
-    --accent-wash: rgba(90, 99, 216, 0.08);
-    --teal: #1F9C74;
-    --teal-wash: rgba(31, 156, 116, 0.08);
-    --text-primary: #1B1D24;
-    --text-secondary: #666D80;
-    --text-muted: #9198A8;
-    --border: rgba(20, 20, 30, 0.08);
-    --border-strong: rgba(20, 20, 30, 0.16);
-  }
-
-  * { box-sizing: border-box; }
-
-  body {
-    margin: 0;
-    background: var(--bg-page);
-    color: var(--text-primary);
-    font-family: var(--font-body);
-    font-size: 15px;
-    line-height: 1.6;
-    min-height: 100vh;
-    display: flex;
-    transition: background 0.2s ease, color 0.2s ease;
-  }
-
-  /* ---------- Sidebar ---------- */
-  .sidebar {
-    width: 232px;
-    flex-shrink: 0;
-    background: var(--bg-sidebar);
-    border-right: 1px solid var(--border);
-    padding: 1.5rem 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.75rem;
-    position: sticky;
-    top: 0;
-    height: 100vh;
-    overflow-y: auto;
-  }
-
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 0 0.5rem;
-  }
-
-  .brand-mark {
-    width: 30px;
-    height: 30px;
-    border-radius: 9px;
-    background: linear-gradient(160deg, var(--accent), var(--accent-dim));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .brand-mark svg { width: 16px; height: 16px; }
-
-  .brand-name {
-    font-family: var(--font-head);
-    font-weight: 700;
-    font-size: 15.5px;
-    letter-spacing: -0.01em;
-  }
-
-  nav {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .nav-section-label {
-    font-size: 11.5px;
-    color: var(--text-muted);
-    padding: 0 0.6rem;
-    margin-bottom: 6px;
-    font-weight: 500;
-  }
-
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 10px;
-    border-radius: var(--radius);
-    color: var(--text-secondary);
-    text-decoration: none;
-    font-size: 14px;
-    cursor: pointer;
-    border: 1px solid transparent;
-    background: transparent;
-    width: 100%;
-    text-align: left;
-    font-family: var(--font-body);
-  }
-
-  .nav-item:hover:not(.active):not(.disabled) {
-    background: var(--bg-card-hover);
-    color: var(--text-primary);
-  }
-
-  .nav-item.active {
-    background: var(--accent-wash);
-    color: var(--accent);
-    font-weight: 500;
-  }
-
-  .nav-item.disabled {
-    color: var(--text-muted);
-    cursor: default;
-  }
-
-  .nav-item svg { width: 17px; height: 17px; flex-shrink: 0; }
-
-  .nav-item .soon {
-    margin-left: auto;
-    font-size: 10.5px;
-    color: var(--text-muted);
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    padding: 2px 6px;
-    border-radius: 20px;
-  }
-
-  .sidebar-footer {
-    margin-top: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding-top: 1rem;
-    border-top: 1px solid var(--border);
-  }
-
-  .theme-toggle {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 10px;
-    border-radius: var(--radius);
-    color: var(--text-secondary);
-    background: transparent;
-    border: none;
-    font-size: 13.5px;
-    cursor: pointer;
-    font-family: var(--font-body);
-    width: 100%;
-    text-align: left;
-  }
-
-  .theme-toggle:hover { background: var(--bg-card-hover); color: var(--text-primary); }
-  .theme-toggle svg { width: 16px; height: 16px; }
-
-  /* ---------- Main ---------- */
-  main {
-    flex: 1;
-    padding: 2.75rem 3rem;
-    max-width: 900px;
-  }
-
-  .page-header { margin-bottom: 2.25rem; }
-
-  .eyebrow {
-    color: var(--accent);
-    font-size: 13px;
-    font-weight: 500;
-    margin: 0 0 6px;
-  }
-
-  h1 {
-    font-family: var(--font-head);
-    font-size: 26px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    margin: 0 0 8px;
-  }
-
-  .subtitle {
-    color: var(--text-secondary);
-    font-size: 14.5px;
-    max-width: 480px;
-    margin: 0;
-  }
-
-  .section-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 14px;
-    margin-top: 2rem;
-  }
-
-  .module-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 1.25rem 1.35rem;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .module-card.ready { border-color: var(--border-strong); }
-
-  .module-icon {
-    width: 34px;
-    height: 34px;
-    border-radius: 9px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--accent-wash);
-    color: var(--accent);
-  }
-
-  .module-card.finance .module-icon { background: var(--teal-wash); color: var(--teal); }
-  .module-icon svg { width: 18px; height: 18px; }
-
-  .module-title {
-    font-family: var(--font-head);
-    font-weight: 600;
-    font-size: 15px;
-    margin: 0;
-  }
-
-  .module-desc {
-    color: var(--text-secondary);
-    font-size: 13.5px;
-    margin: 0;
-    line-height: 1.55;
-  }
-
-  .module-status {
-    font-size: 12px;
-    font-weight: 500;
-    margin-top: auto;
-    padding-top: 4px;
-  }
-
-  .module-status.live { color: var(--teal); }
-  .module-status.soon { color: var(--text-muted); }
-
-  .foundation-note {
-    margin-top: 2.5rem;
-    padding: 1rem 1.25rem;
-    background: var(--bg-card);
-    border: 1px dashed var(--border-strong);
-    border-radius: var(--radius);
-    color: var(--text-secondary);
-    font-size: 13px;
-    display: flex;
-    gap: 10px;
-    align-items: flex-start;
-  }
-
-  .foundation-note svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; color: var(--accent); }
-
-  @media (max-width: 720px) {
-    body { flex-direction: column; }
-    .sidebar { width: 100%; height: auto; position: relative; flex-direction: row; flex-wrap: wrap; }
-    nav { flex-direction: row; flex-wrap: wrap; }
-    main { padding: 1.5rem 1.25rem; }
-  }
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -321,14 +29,13 @@
     <div>
       <p class="nav-section-label">Ambiti</p>
       <nav>
-        <button class="nav-item active" data-target="home">
+        <button class="nav-item" data-target="home" onclick="switchPage('home')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-8 9 8"/><path d="M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9"/></svg>
           Panoramica
         </button>
-        <button class="nav-item disabled" data-target="todo">
+        <button class="nav-item active" data-target="todo" onclick="switchPage('todo')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.2 2.2L16 9"/></svg>
           Cose da fare
-          <span class="soon">presto</span>
         </button>
         <button class="nav-item disabled" data-target="diario">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h11a1 1 0 011 1v15l-3-2-3 2-3-2-3 2V5a1 1 0 011-1z"/></svg>
@@ -352,75 +59,53 @@
   </aside>
 
   <main>
-    <div class="page-header">
-      <p class="eyebrow">Fondamenta pronte</p>
-      <h1>La struttura è impostata.</h1>
-      <p class="subtitle">Da qui costruiremo un ambito alla volta. La navigazione, il salvataggio dei dati e lo stile restano fissi: ogni nuovo modulo si aggiunge senza rifare il resto.</p>
-    </div>
-
-    <div class="section-grid">
-      <div class="module-card finance">
-        <div class="module-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M7 15h3"/></svg>
-        </div>
-        <p class="module-title">Finanze</p>
-        <p class="module-desc">Entrate, uscite e saldo nel tempo, in un unico posto.</p>
-        <p class="module-status soon">In arrivo</p>
+    <div id="page-home" style="display:none;">
+      <div class="page-header">
+        <p class="eyebrow">Fondamenta pronte</p>
+        <h1>La struttura è impostata.</h1>
+        <p class="subtitle">Da qui costruiremo un ambito alla volta. La navigazione, il salvataggio dei dati e lo stile restano fissi: ogni nuovo modulo si aggiunge senza rifare il resto.</p>
       </div>
 
-      <div class="module-card">
-        <div class="module-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h11a1 1 0 011 1v15l-3-2-3 2-3-2-3 2V5a1 1 0 011-1z"/></svg>
+      <div class="section-grid">
+        <div class="module-card finance">
+          <div class="module-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M7 15h3"/></svg>
+          </div>
+          <p class="module-title">Finanze</p>
+          <p class="module-desc">Entrate, uscite e saldo nel tempo, in un unico posto.</p>
+          <p class="module-status soon">In arrivo</p>
         </div>
-        <p class="module-title">Diario</p>
-        <p class="module-desc">Note del giorno, pensieri, momenti da ritrovare facilmente.</p>
-        <p class="module-status soon">In arrivo</p>
+
+        <div class="module-card">
+          <div class="module-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h11a1 1 0 011 1v15l-3-2-3 2-3-2-3 2V5a1 1 0 011-1z"/></svg>
+          </div>
+          <p class="module-title">Diario</p>
+          <p class="module-desc">Note del giorno, pensieri, momenti da ritrovare facilmente.</p>
+          <p class="module-status soon">In arrivo</p>
+        </div>
+
+        <div class="module-card ready" onclick="switchPage('todo')" style="cursor:pointer;">
+          <div class="module-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.2 2.2L16 9"/></svg>
+          </div>
+          <p class="module-title">Cose da fare</p>
+          <p class="module-desc">Attività quotidiane, categorie, calendario e ricorrenze.</p>
+          <p class="module-status live">Attivo</p>
+        </div>
       </div>
 
-      <div class="module-card">
-        <div class="module-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.2 2.2L16 9"/></svg>
-        </div>
-        <p class="module-title">Cose da fare</p>
-        <p class="module-desc">Attività quotidiane, semplici da spuntare.</p>
-        <p class="module-status soon">In arrivo</p>
+      <div class="foundation-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
+        <span>Il modulo "Cose da fare" è attivo. I prossimi saranno Diario e Finanze, con la stessa struttura.</span>
       </div>
     </div>
 
-    <div class="foundation-note">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>
-      <span>Il primo modulo che costruiremo sarà "Cose da fare". Quando è pronto, questa scheda diventa l'ambito attivo nel menu a sinistra.</span>
-    </div>
+    <div id="page-todo" style="display:none;"></div>
   </main>
 
-  <script>
-    const root = document.documentElement;
-    const toggle = document.getElementById('themeToggle');
-    const themeLabel = document.getElementById('themeLabel');
-    const themeIcon = document.getElementById('themeIcon');
-
-    const sunPath = '<path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/><circle cx="12" cy="12" r="4.5"/>';
-    const moonPath = '<path d="M21 12.5A8.5 8.5 0 1111.5 3 7 7 0 0021 12.5z"/>';
-
-    function applyTheme(theme) {
-      root.setAttribute('data-theme', theme);
-      themeLabel.textContent = theme === 'dark' ? 'Tema scuro' : 'Tema chiaro';
-      themeIcon.innerHTML = theme === 'dark' ? moonPath : sunPath;
-    }
-
-    let saved = 'dark';
-    try {
-      saved = localStorage.getItem('app-personale-theme') || 'dark';
-    } catch (e) {}
-    applyTheme(saved);
-
-    toggle.addEventListener('click', () => {
-      const current = root.getAttribute('data-theme');
-      const next = current === 'dark' ? 'light' : 'dark';
-      applyTheme(next);
-      try { localStorage.setItem('app-personale-theme', next); } catch (e) {}
-    });
-  </script>
+  <script src="app.js"></script>
+<script src="todo.js"></script>
 
 </body>
 </html>
