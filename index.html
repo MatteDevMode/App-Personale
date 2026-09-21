@@ -61,7 +61,7 @@
           </svg>
           Diario
         </button>
-        <button class="nav-item disabled" data-target="finanze">
+        <button class="nav-item" data-target="finanze" onclick="switchPage('finanze')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
             stroke-linejoin="round">
             <rect x="3" y="6" width="18" height="13" rx="2" />
@@ -69,7 +69,6 @@
             <path d="M7 15h3" />
           </svg>
           Finanze
-          <span class="soon">presto</span>
         </button>
       </nav>
     </div>
@@ -95,7 +94,7 @@
       </div>
 
       <div class="section-grid">
-        <div class="module-card finance">
+        <div class="module-card ready" onclick="switchPage('finanze')" style="cursor:pointer;">
           <div class="module-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
               stroke-linejoin="round">
@@ -105,8 +104,8 @@
             </svg>
           </div>
           <p class="module-title">Finanze</p>
-          <p class="module-desc">Entrate, uscite e saldo nel tempo, in un unico posto.</p>
-          <p class="module-status soon">In arrivo</p>
+          <p class="module-desc">Conti, budget, reselling e grafici dell'andamento.</p>
+          <p class="module-status live">Attivo</p>
         </div>
 
         <div class="module-card ready" onclick="switchPage('diario')" style="cursor:pointer;">
@@ -142,17 +141,21 @@
           <path d="M12 8v5" />
           <path d="M12 16h.01" />
         </svg>
-        <span>Cose da fare e Diario sono attivi. Il prossimo sarà Finanze, con la stessa struttura.</span>
+        <span>Cose da fare, Diario e Finanze sono attivi. La struttura è pronta per qualsiasi nuovo ambito
+          futuro.</span>
       </div>
     </div>
 
     <div id="page-todo" style="display:none;"></div>
     <div id="page-diario" style="display:none;"></div>
+    <div id="page-finanze" style="display:none;"></div>
   </main>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
   <script src="app.js"></script>
   <script src="todo.js"></script>
   <script src="diario.js"></script>
+  <script src="finanze.js"></script>
 
 </body>
 
