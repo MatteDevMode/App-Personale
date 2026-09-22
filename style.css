@@ -1482,3 +1482,105 @@ h1 {
     padding: 0.75rem 1.25rem;
   }
 }
+
+/* ---------- Auth gate ---------- */
+#authGate {
+  display: none;
+  min-height: 100vh;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.auth-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 2rem 1.75rem;
+  width: 100%;
+  max-width: 360px;
+}
+
+.auth-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.auth-logo .brand-mark {
+  border-radius: 12px;
+  background: linear-gradient(160deg, var(--accent), var(--accent-dim));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-tabs {
+  display: flex;
+  background: var(--bg-page);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  margin-bottom: 1.25rem;
+}
+
+.auth-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  padding: 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--font-body);
+}
+
+.auth-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.auth-error {
+  color: #E8604C;
+  font-size: 12.5px;
+  margin: 10px 0 0;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  font-size: 13.5px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  width: 100%;
+  text-align: left;
+}
+
+.logout-btn:hover {
+  background: var(--bg-card-hover);
+  color: #E8604C;
+}
+
+.logout-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+#appShell {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  #appShell.shell-visible {
+    display: flex;
+  }
+}

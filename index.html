@@ -24,133 +24,151 @@
 
 <body>
 
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"
-          stroke-linejoin="round">
-          <path d="M12 2l1.9 5.8L20 10l-6.1 2.2L12 18l-1.9-5.8L4 10l6.1-2.2L12 2z" />
-        </svg>
-      </div>
-      <span class="brand-name">La mia app</span>
-    </div>
+  <div id="authGate"></div>
 
-    <div>
-      <p class="nav-section-label">Ambiti</p>
-      <nav>
-        <button class="nav-item" data-target="home" onclick="switchPage('home')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+  <div id="appShell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"
             stroke-linejoin="round">
-            <path d="M3 12l9-8 9 8" />
-            <path d="M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9" />
+            <path d="M12 2l1.9 5.8L20 10l-6.1 2.2L12 18l-1.9-5.8L4 10l6.1-2.2L12 2z" />
           </svg>
-          Panoramica
-        </button>
-        <button class="nav-item active" data-target="todo" onclick="switchPage('todo')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-            stroke-linejoin="round">
-            <rect x="4" y="4" width="16" height="16" rx="3" />
-            <path d="M8.5 12l2.2 2.2L16 9" />
-          </svg>
-          Cose da fare
-        </button>
-        <button class="nav-item" data-target="diario" onclick="switchPage('diario')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-            stroke-linejoin="round">
-            <path d="M6 4h11a1 1 0 011 1v15l-3-2-3 2-3-2-3 2V5a1 1 0 011-1z" />
-          </svg>
-          Diario
-        </button>
-        <button class="nav-item" data-target="finanze" onclick="switchPage('finanze')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-            stroke-linejoin="round">
-            <rect x="3" y="6" width="18" height="13" rx="2" />
-            <path d="M3 10h18" />
-            <path d="M7 15h3" />
-          </svg>
-          Finanze
-        </button>
-      </nav>
-    </div>
-
-    <div class="sidebar-footer">
-      <button class="theme-toggle" id="themeToggle">
-        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 12.5A8.5 8.5 0 1111.5 3 7 7 0 0021 12.5z" />
-        </svg>
-        <span id="themeLabel">Tema scuro</span>
-      </button>
-    </div>
-  </aside>
-
-  <main>
-    <div id="page-home" style="display:none;">
-      <div class="page-header">
-        <p class="eyebrow">Fondamenta pronte</p>
-        <h1>La struttura è impostata.</h1>
-        <p class="subtitle">Da qui costruiremo un ambito alla volta. La navigazione, il salvataggio dei dati e lo stile
-          restano fissi: ogni nuovo modulo si aggiunge senza rifare il resto.</p>
+        </div>
+        <span class="brand-name">La mia app</span>
       </div>
 
-      <div class="section-grid">
-        <div class="module-card ready" onclick="switchPage('finanze')" style="cursor:pointer;">
-          <div class="module-icon">
+      <div>
+        <p class="nav-section-label">Ambiti</p>
+        <nav>
+          <button class="nav-item" data-target="home" onclick="switchPage('home')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M3 12l9-8 9 8" />
+              <path d="M5 10v9a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1v-9" />
+            </svg>
+            Panoramica
+          </button>
+          <button class="nav-item active" data-target="todo" onclick="switchPage('todo')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+              stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="3" />
+              <path d="M8.5 12l2.2 2.2L16 9" />
+            </svg>
+            Cose da fare
+          </button>
+          <button class="nav-item" data-target="diario" onclick="switchPage('diario')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M6 4h11a1 1 0 011 1v15l-3-2-3 2-3-2-3 2V5a1 1 0 011-1z" />
+            </svg>
+            Diario
+          </button>
+          <button class="nav-item" data-target="finanze" onclick="switchPage('finanze')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
               stroke-linejoin="round">
               <rect x="3" y="6" width="18" height="13" rx="2" />
               <path d="M3 10h18" />
               <path d="M7 15h3" />
             </svg>
-          </div>
-          <p class="module-title">Finanze</p>
-          <p class="module-desc">Conti, budget, reselling e grafici dell'andamento.</p>
-          <p class="module-status live">Attivo</p>
+            Finanze
+          </button>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <button class="theme-toggle" id="themeToggle">
+          <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.5A8.5 8.5 0 1111.5 3 7 7 0 0021 12.5z" />
+          </svg>
+          <span id="themeLabel">Tema scuro</span>
+        </button>
+        <button class="logout-btn" id="logoutBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+            <path d="M16 17l5-5-5-5" />
+            <path d="M21 12H9" />
+          </svg>
+          Esci
+        </button>
+      </div>
+    </aside>
+
+    <main>
+      <div id="page-home" style="display:none;">
+        <div class="page-header">
+          <p class="eyebrow">Fondamenta pronte</p>
+          <h1>La struttura è impostata.</h1>
+          <p class="subtitle">Da qui costruiremo un ambito alla volta. La navigazione, il salvataggio dei dati e lo
+            stile restano fissi: ogni nuovo modulo si aggiunge senza rifare il resto.</p>
         </div>
 
-        <div class="module-card ready" onclick="switchPage('diario')" style="cursor:pointer;">
-          <div class="module-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-              stroke-linejoin="round">
-              <path d="M6 4h11a1 1 0 011 1v15l-3-2-3 2-3-2-3 2V5a1 1 0 011-1z" />
-            </svg>
+        <div class="section-grid">
+          <div class="module-card ready" onclick="switchPage('finanze')" style="cursor:pointer;">
+            <div class="module-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="3" y="6" width="18" height="13" rx="2" />
+                <path d="M3 10h18" />
+                <path d="M7 15h3" />
+              </svg>
+            </div>
+            <p class="module-title">Finanze</p>
+            <p class="module-desc">Conti, budget, reselling e grafici dell'andamento.</p>
+            <p class="module-status live">Attivo</p>
           </div>
-          <p class="module-title">Diario</p>
-          <p class="module-desc">Voci con umore, spunto del giorno, calendario dei ricordi.</p>
-          <p class="module-status live">Attivo</p>
+
+          <div class="module-card ready" onclick="switchPage('diario')" style="cursor:pointer;">
+            <div class="module-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M6 4h11a1 1 0 011 1v15l-3-2-3 2-3-2-3 2V5a1 1 0 011-1z" />
+              </svg>
+            </div>
+            <p class="module-title">Diario</p>
+            <p class="module-desc">Voci con umore, spunto del giorno, calendario dei ricordi.</p>
+            <p class="module-status live">Attivo</p>
+          </div>
+
+          <div class="module-card ready" onclick="switchPage('todo')" style="cursor:pointer;">
+            <div class="module-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                stroke-linejoin="round">
+                <rect x="4" y="4" width="16" height="16" rx="3" />
+                <path d="M8.5 12l2.2 2.2L16 9" />
+              </svg>
+            </div>
+            <p class="module-title">Cose da fare</p>
+            <p class="module-desc">Attività quotidiane, categorie, calendario e ricorrenze.</p>
+            <p class="module-status live">Attivo</p>
+          </div>
         </div>
 
-        <div class="module-card ready" onclick="switchPage('todo')" style="cursor:pointer;">
-          <div class="module-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-              stroke-linejoin="round">
-              <rect x="4" y="4" width="16" height="16" rx="3" />
-              <path d="M8.5 12l2.2 2.2L16 9" />
-            </svg>
-          </div>
-          <p class="module-title">Cose da fare</p>
-          <p class="module-desc">Attività quotidiane, categorie, calendario e ricorrenze.</p>
-          <p class="module-status live">Attivo</p>
+        <div class="foundation-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+            stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 8v5" />
+            <path d="M12 16h.01" />
+          </svg>
+          <span>Cose da fare, Diario e Finanze sono attivi. La struttura è pronta per qualsiasi nuovo ambito
+            futuro.</span>
         </div>
       </div>
 
-      <div class="foundation-note">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-          stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 8v5" />
-          <path d="M12 16h.01" />
-        </svg>
-        <span>Cose da fare, Diario e Finanze sono attivi. La struttura è pronta per qualsiasi nuovo ambito
-          futuro.</span>
-      </div>
-    </div>
+      <div id="page-todo" style="display:none;"></div>
+      <div id="page-diario" style="display:none;"></div>
+      <div id="page-finanze" style="display:none;"></div>
+    </main>
+  </div>
 
-    <div id="page-todo" style="display:none;"></div>
-    <div id="page-diario" style="display:none;"></div>
-    <div id="page-finanze" style="display:none;"></div>
-  </main>
-
+  <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
+  <script src="firebase-init.js"></script>
+  <script src="auth.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="app.js"></script>
   <script src="todo.js"></script>
