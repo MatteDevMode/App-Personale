@@ -16,4 +16,8 @@
   firebase.initializeApp(firebaseConfig);
   window.auth = firebase.auth();
   window.db = firebase.firestore();
+
+  window.db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+    console.warn('Cache offline non attivata:', err.code);
+  });
 })();

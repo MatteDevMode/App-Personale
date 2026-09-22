@@ -22,21 +22,21 @@
     function draw() {
       gate.innerHTML =
         '<div class="auth-card">' +
-          '<div class="auth-logo">' +
-            '<div class="brand-mark" style="width:40px;height:40px;">' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.8L20 10l-6.1 2.2L12 18l-1.9-5.8L4 10l6.1-2.2L12 2z"/></svg>' +
-            '</div>' +
-          '</div>' +
-          '<div class="auth-tabs">' +
-            '<button class="auth-tab' + (mode === 'login' ? ' active' : '') + '" id="tabLogin">Accedi</button>' +
-            '<button class="auth-tab' + (mode === 'register' ? ' active' : '') + '" id="tabRegister">Registrati</button>' +
-          '</div>' +
-          '<label class="field-label">Email</label>' +
-          '<input type="email" id="authEmail" autocomplete="email" />' +
-          '<label class="field-label">Password</label>' +
-          '<input type="password" id="authPassword" autocomplete="' + (mode === 'login' ? 'current-password' : 'new-password') + '" />' +
-          '<p class="auth-error" id="authError" style="display:none;"></p>' +
-          '<button class="btn btn-primary" id="authSubmit" style="width:100%;margin-top:14px;">' + (mode === 'login' ? 'Accedi' : 'Crea account') + '</button>' +
+        '<div class="auth-logo">' +
+        '<div class="brand-mark" style="width:40px;height:40px;">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.8L20 10l-6.1 2.2L12 18l-1.9-5.8L4 10l6.1-2.2L12 2z"/></svg>' +
+        '</div>' +
+        '</div>' +
+        '<div class="auth-tabs">' +
+        '<button class="auth-tab' + (mode === 'login' ? ' active' : '') + '" id="tabLogin">Accedi</button>' +
+        '<button class="auth-tab' + (mode === 'register' ? ' active' : '') + '" id="tabRegister">Registrati</button>' +
+        '</div>' +
+        '<label class="field-label">Email</label>' +
+        '<input type="email" id="authEmail" autocomplete="email" />' +
+        '<label class="field-label">Password</label>' +
+        '<input type="password" id="authPassword" autocomplete="' + (mode === 'login' ? 'current-password' : 'new-password') + '" />' +
+        '<p class="auth-error" id="authError" style="display:none;"></p>' +
+        '<button class="btn btn-primary" id="authSubmit" style="width:100%;margin-top:14px;">' + (mode === 'login' ? 'Accedi' : 'Crea account') + '</button>' +
         '</div>';
 
       document.getElementById('tabLogin').onclick = () => { mode = 'login'; draw(); };
@@ -82,8 +82,15 @@
   function init() {
     renderAuthGate();
     window.auth.onAuthStateChanged(user => {
-      if (user) { window.currentUser = user; showApp(); }
-      else { window.currentUser = null; showGate(); }
+      if (user) {
+        window.currentUser = user;
+        showApp();
+        window.dispatchEvent(new CustomEvent('app:authReady', { detail: { uid: user.uid } }));
+      } else {
+        window.currentUser = null;
+        showGate();
+        window.dispatchEvent(new CustomEvent('app:authLoggedOut'));
+      }
     });
 
     const logoutBtn = document.getElementById('logoutBtn');

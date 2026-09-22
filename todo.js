@@ -1,5 +1,4 @@
 (function () {
-  const STORAGE_KEY = 'todoAppData';
   const PALETTE = ['#6C8CF5', '#9B7CF8', '#3FCFA0', '#5AB7E8', '#C77DF0', '#4FD1C5'];
 
   function pad2(n) { return String(n).padStart(2, '0'); }
@@ -11,9 +10,9 @@
   function nextWeekday(dow) { let d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 1); while (d.getDay() !== dow) d.setDate(d.getDate() + 1); return formatDate(d); }
   function uid() { return 't_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
-  const MONTHS = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
-  const WEEKDAYS_LONG = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
-  const DOW_SHORT = ['Lun','Mar','Mer','Gio','Ven','Sab','Dom'];
+  const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+  const WEEKDAYS_LONG = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
+  const DOW_SHORT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
   function humanDate(dateStr) {
     const d = parseDateStr(dateStr);
@@ -32,16 +31,14 @@
     };
   }
 
-  let data;
-  function loadData() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (e) {}
-    return defaultData();
-  }
+  let data = defaultData();
+  let docRef = null;
+  let unsubscribe = null;
+  let ready = false;
+
   function saveData() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+    if (!docRef) return;
+    docRef.set(data).catch(err => console.error('Errore salvataggio Cose da fare:', err));
   }
   function purgeOldCompleted() {
     const t = todayStr();
@@ -85,7 +82,7 @@
     else if (m = strip(/\bogni\s+(\d+)\s*mes[ei]\b/i)) recurrence = { interval: parseInt(m[1], 10), unit: 'month' };
     else if (strip(/\bogni\s+mese\b/i)) recurrence = { interval: 1, unit: 'month' };
 
-    const WD = { domenica:0, lunedi:1, 'lunedì':1, martedi:2, 'martedì':2, mercoledi:3, 'mercoledì':3, giovedi:4, 'giovedì':4, venerdi:5, 'venerdì':5, sabato:6 };
+    const WD = { domenica: 0, lunedi: 1, 'lunedì': 1, martedi: 2, 'martedì': 2, mercoledi: 3, 'mercoledì': 3, giovedi: 4, 'giovedì': 4, venerdi: 5, 'venerdì': 5, sabato: 6 };
 
     if (strip(/\bdopodomani\b/i)) date = addDaysToToday(2);
     else if (strip(/\bdomani\b/i)) date = addDaysToToday(1);
@@ -126,21 +123,21 @@
     const page = document.getElementById('page-todo');
     page.innerHTML =
       '<div class="todo-top">' +
-        '<div><p class="eyebrow">Ambito attivo</p><h1 style="margin:0;">Cose da fare</h1></div>' +
-        '<div style="display:flex;gap:8px;align-items:center;">' +
-          '<div class="view-switch">' +
-            '<button id="viewBtnCal">Calendario</button>' +
-            '<button id="viewBtnList">Lista</button>' +
-          '</div>' +
-          '<button class="icon-btn" id="manageCatsBtn" title="Categorie">' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><circle cx="6.5" cy="17.5" r="2.5"/></svg>' +
-          '</button>' +
-        '</div>' +
+      '<div><p class="eyebrow">Ambito attivo</p><h1 style="margin:0;">Cose da fare</h1></div>' +
+      '<div style="display:flex;gap:8px;align-items:center;">' +
+      '<div class="view-switch">' +
+      '<button id="viewBtnCal">Calendario</button>' +
+      '<button id="viewBtnList">Lista</button>' +
+      '</div>' +
+      '<button class="icon-btn" id="manageCatsBtn" title="Categorie">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/><circle cx="6.5" cy="17.5" r="2.5"/></svg>' +
+      '</button>' +
+      '</div>' +
       '</div>' +
       '<div id="todoContent"></div>' +
       '<div class="quick-add-bar">' +
-        '<input id="quickAddInput" type="text" placeholder="Scrivi un\u2019attività... es. dentista domani alle 10" />' +
-        '<button class="quick-add-send" id="quickAddSend"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></button>' +
+      '<input id="quickAddInput" type="text" placeholder="Scrivi un\u2019attività... es. dentista domani alle 10" />' +
+      '<button class="quick-add-send" id="quickAddSend"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></button>' +
       '</div>';
 
     document.getElementById('viewBtnCal').onclick = () => { state.view = 'calendar'; renderContent(); };
@@ -207,16 +204,16 @@
         '<span class="cal-day-num">' + cellDate.getDate() + '</span>' +
         pills +
         '<button class="cal-add-btn" data-add="' + dStr + '">+</button>' +
-      '</div>';
+        '</div>';
     }
 
     let dowHtml = DOW_SHORT.map(d => '<div class="cal-dow">' + d + '</div>').join('');
 
     container.innerHTML =
       '<div class="cal-nav">' +
-        '<button class="icon-btn" id="calPrev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>' +
-        '<span class="cal-nav-title">' + MONTHS[month] + ' ' + year + '</span>' +
-        '<button class="icon-btn" id="calNext"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+      '<button class="icon-btn" id="calPrev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>' +
+      '<span class="cal-nav-title">' + MONTHS[month] + ' ' + year + '</span>' +
+      '<button class="icon-btn" id="calNext"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
       '</div>' +
       '<div class="cal-grid">' + dowHtml + cellsHtml + '</div>';
 
@@ -251,7 +248,7 @@
       '<button class="task-check" data-check="' + t.id + '">' + (t.completed ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>' : '') + '</button>' +
       '<div class="task-body"><div class="task-title">' + esc(t.title) + '</div>' +
       (meta.length ? '<div class="task-meta">' + meta.join('') + '</div>' : '') + '</div>' +
-    '</div>';
+      '</div>';
   }
 
   function renderList(container) {
@@ -264,7 +261,7 @@
       '<div class="day-nav-controls"><span class="day-nav-title">' + humanDate(state.currentDate) + '</span>' +
       (!isToday ? '<button class="today-btn" id="goToday">Oggi</button>' : '') + '</div>' +
       '<button class="icon-btn" id="dayNext"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
-    '</div>';
+      '</div>';
 
     html += '<p class="section-label">Senza data</p>';
     html += noDate.length ? noDate.map(taskItemHtml).join('') : '<p class="empty-hint">Nessuna attività senza data</p>';
@@ -315,14 +312,14 @@
     function draw() {
       overlay.innerHTML =
         '<div class="modal-box">' +
-          '<p class="modal-title">Categorie</p>' +
-          '<div id="catList"></div>' +
-          '<p class="field-label">Nuova categoria</p>' +
-          '<input type="text" id="newCatName" placeholder="Nome categoria" />' +
-          '<div class="row-2" style="margin-top:10px;">' +
-            '<button class="btn btn-primary" id="addCatBtn">Aggiungi</button>' +
-            '<button class="btn btn-ghost" id="closeCatBtn">Chiudi</button>' +
-          '</div>' +
+        '<p class="modal-title">Categorie</p>' +
+        '<div id="catList"></div>' +
+        '<p class="field-label">Nuova categoria</p>' +
+        '<input type="text" id="newCatName" placeholder="Nome categoria" />' +
+        '<div class="row-2" style="margin-top:10px;">' +
+        '<button class="btn btn-primary" id="addCatBtn">Aggiungi</button>' +
+        '<button class="btn btn-ghost" id="closeCatBtn">Chiudi</button>' +
+        '</div>' +
         '</div>';
       const list = overlay.querySelector('#catList');
       list.innerHTML = data.categories.map(c =>
@@ -372,31 +369,31 @@
 
     overlay.innerHTML =
       '<div class="modal-box">' +
-        '<p class="modal-title">' + title + '</p>' +
-        (isPreview ? '<p class="modal-sub">Controlla e correggi se serve, poi conferma.</p>' : '') +
-        '<label class="field-label">Titolo</label>' +
-        '<input type="text" id="fTitle" value="' + esc(vals.title || '') + '" />' +
-        '<label class="field-label">Data</label>' +
-        '<input type="date" id="fDate" value="' + (vals.date || '') + '" />' +
-        '<div class="row-2">' +
-          '<div><label class="field-label">Inizio (opzionale)</label><input type="time" id="fStart" value="' + (vals.startTime || '') + '" /></div>' +
-          '<div><label class="field-label">Fine (opzionale)</label><input type="time" id="fEnd" value="' + (vals.endTime || '') + '" /></div>' +
-        '</div>' +
-        '<label class="field-label">Categoria</label>' +
-        '<select id="fCat">' + catOptionsHtml(vals.categoryId) + '</select>' +
-        '<label class="field-label">Ricorrenza</label>' +
-        '<select id="fRecUnit">' +
-          '<option value="">Nessuna</option>' +
-          '<option value="day"' + (rec && rec.unit === 'day' ? ' selected' : '') + '>Ogni N giorni</option>' +
-          '<option value="week"' + (rec && rec.unit === 'week' ? ' selected' : '') + '>Ogni N settimane</option>' +
-          '<option value="month"' + (rec && rec.unit === 'month' ? ' selected' : '') + '>Ogni N mesi</option>' +
-        '</select>' +
-        '<input type="text" id="fRecN" inputmode="numeric" placeholder="Intervallo (es. 4)" value="' + (rec ? rec.interval : '') + '" style="margin-top:8px;display:' + (rec ? 'block' : 'none') + ';" />' +
-        '<div class="modal-actions">' +
-          (isEdit ? '<button class="btn btn-danger" id="fDelete">Elimina</button>' : '') +
-          '<button class="btn btn-ghost" id="fCancel">Annulla</button>' +
-          '<button class="btn btn-primary" id="fSave">' + (isPreview ? 'Conferma' : 'Salva') + '</button>' +
-        '</div>' +
+      '<p class="modal-title">' + title + '</p>' +
+      (isPreview ? '<p class="modal-sub">Controlla e correggi se serve, poi conferma.</p>' : '') +
+      '<label class="field-label">Titolo</label>' +
+      '<input type="text" id="fTitle" value="' + esc(vals.title || '') + '" />' +
+      '<label class="field-label">Data</label>' +
+      '<input type="date" id="fDate" value="' + (vals.date || '') + '" />' +
+      '<div class="row-2">' +
+      '<div><label class="field-label">Inizio (opzionale)</label><input type="time" id="fStart" value="' + (vals.startTime || '') + '" /></div>' +
+      '<div><label class="field-label">Fine (opzionale)</label><input type="time" id="fEnd" value="' + (vals.endTime || '') + '" /></div>' +
+      '</div>' +
+      '<label class="field-label">Categoria</label>' +
+      '<select id="fCat">' + catOptionsHtml(vals.categoryId) + '</select>' +
+      '<label class="field-label">Ricorrenza</label>' +
+      '<select id="fRecUnit">' +
+      '<option value="">Nessuna</option>' +
+      '<option value="day"' + (rec && rec.unit === 'day' ? ' selected' : '') + '>Ogni N giorni</option>' +
+      '<option value="week"' + (rec && rec.unit === 'week' ? ' selected' : '') + '>Ogni N settimane</option>' +
+      '<option value="month"' + (rec && rec.unit === 'month' ? ' selected' : '') + '>Ogni N mesi</option>' +
+      '</select>' +
+      '<input type="text" id="fRecN" inputmode="numeric" placeholder="Intervallo (es. 4)" value="' + (rec ? rec.interval : '') + '" style="margin-top:8px;display:' + (rec ? 'block' : 'none') + ';" />' +
+      '<div class="modal-actions">' +
+      (isEdit ? '<button class="btn btn-danger" id="fDelete">Elimina</button>' : '') +
+      '<button class="btn btn-ghost" id="fCancel">Annulla</button>' +
+      '<button class="btn btn-primary" id="fSave">' + (isPreview ? 'Conferma' : 'Salva') + '</button>' +
+      '</div>' +
       '</div>';
 
     const recUnitSel = overlay.querySelector('#fRecUnit');
@@ -452,13 +449,13 @@
     overlay.className = 'modal-overlay';
     overlay.innerHTML =
       '<div class="modal-box">' +
-        '<p class="modal-title">Eliminare l\u2019attività ricorrente?</p>' +
-        '<p class="modal-sub">È un\u2019attività che si ripete. Cosa vuoi eliminare?</p>' +
-        '<div class="modal-actions" style="flex-direction:column;">' +
-          '<button class="btn btn-primary" id="delThis">Solo questa occorrenza</button>' +
-          '<button class="btn btn-danger" id="delAll">Tutta la serie</button>' +
-          '<button class="btn btn-ghost" id="delCancel">Annulla</button>' +
-        '</div>' +
+      '<p class="modal-title">Eliminare l\u2019attività ricorrente?</p>' +
+      '<p class="modal-sub">È un\u2019attività che si ripete. Cosa vuoi eliminare?</p>' +
+      '<div class="modal-actions" style="flex-direction:column;">' +
+      '<button class="btn btn-primary" id="delThis">Solo questa occorrenza</button>' +
+      '<button class="btn btn-danger" id="delAll">Tutta la serie</button>' +
+      '<button class="btn btn-ghost" id="delCancel">Annulla</button>' +
+      '</div>' +
       '</div>';
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     overlay.querySelector('#delCancel').onclick = () => overlay.remove();
@@ -479,18 +476,45 @@
   }
 
   // ---------- Init ----------
-  function init() {
-    data = loadData();
-    purgeOldCompleted();
-    saveData();
-    renderShell();
-    renderContent();
+  function renderLoading() {
+    const page = document.getElementById('page-todo');
+    if (page) page.innerHTML = '<p class="empty-hint">Caricamento...</p>';
+  }
+
+  function startForUser(uid) {
+    ready = false;
+    if (unsubscribe) unsubscribe();
+    renderLoading();
+    docRef = window.db.collection('users').doc(uid).collection('modules').doc('todo');
+
+    unsubscribe = docRef.onSnapshot(snap => {
+      if (snap.exists) {
+        data = snap.data();
+      } else {
+        data = defaultData();
+        docRef.set(data).catch(err => console.error('Errore inizializzazione Cose da fare:', err));
+      }
+      purgeOldCompleted();
+      if (!ready) { ready = true; renderShell(); }
+      renderContent();
+    }, err => {
+      console.error('Errore lettura Cose da fare:', err);
+      renderLoading();
+    });
+  }
+
+  function stopForLogout() {
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+    docRef = null;
+    ready = false;
+    data = defaultData();
   }
 
   window.Todo = {
-    onShow: function () { purgeOldCompleted(); saveData(); renderContent(); }
+    onShow: function () { if (ready) { purgeOldCompleted(); renderContent(); } }
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+  window.addEventListener('app:authReady', e => startForUser(e.detail.uid));
+  window.addEventListener('app:authLoggedOut', stopForLogout);
+  if (window.currentUser) startForUser(window.currentUser.uid);
 })();
