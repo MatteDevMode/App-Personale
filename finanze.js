@@ -151,9 +151,9 @@
 
         html += periodSwitchHtml();
 
-        html += '<div class="chart-card"><p class="chart-title">Andamento saldo totale</p><canvas id="chartBalance"></canvas></div>';
-        html += '<div class="chart-card"><p class="chart-title">Entrate vs Uscite</p><canvas id="chartIncomeExpense"></canvas></div>';
-        html += '<div class="chart-card"><p class="chart-title">Spesa per categoria</p><canvas id="chartCategory"></canvas></div>';
+        html += '<div class="chart-card"><p class="chart-title">Andamento saldo totale</p><div class="chart-wrap"><canvas id="chartBalance"></canvas></div></div>';
+        html += '<div class="chart-card"><p class="chart-title">Entrate vs Uscite</p><div class="chart-wrap"><canvas id="chartIncomeExpense"></canvas></div></div>';
+        html += '<div class="chart-card"><p class="chart-title">Spesa per categoria</p><div class="chart-wrap"><canvas id="chartCategory"></canvas></div></div>';
 
         const resell = resellTotals();
         html += '<div class="chart-card">' +
@@ -301,7 +301,7 @@
             charts.balance = new Chart(balCanvas, {
                 type: 'line',
                 data: { labels: bs.labels, datasets: [{ data: bs.values, borderColor: '#7C8CF8', backgroundColor: 'rgba(124,140,248,0.15)', fill: true, tension: 0.3, pointRadius: 0 }] },
-                options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: txt, maxTicksLimit: 6 }, grid: { color: grid } }, y: { ticks: { color: txt }, grid: { color: grid } } } }
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: txt, maxTicksLimit: 6 }, grid: { color: grid } }, y: { ticks: { color: txt }, grid: { color: grid } } } }
             });
         }
 
@@ -317,7 +317,7 @@
                         { label: 'Uscite', data: ie.expense, backgroundColor: '#E8604C', borderRadius: 4 }
                     ]
                 },
-                options: { plugins: { legend: { labels: { color: txt } } }, scales: { x: { ticks: { color: txt }, grid: { display: false } }, y: { ticks: { color: txt }, grid: { color: grid } } } }
+                options: { maintainAspectRatio: false, plugins: { legend: { labels: { color: txt } } }, scales: { x: { ticks: { color: txt }, grid: { display: false } }, y: { ticks: { color: txt }, grid: { color: grid } } } }
             });
         }
 
@@ -329,7 +329,7 @@
                 charts.cat = new Chart(catCanvas, {
                     type: 'doughnut',
                     data: { labels: cs.labels, datasets: [{ data: cs.values, backgroundColor: cs.colors, borderWidth: 0 }] },
-                    options: { plugins: { legend: { position: 'right', labels: { color: txt, boxWidth: 10, font: { size: 11 } } } } }
+                    options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: txt, boxWidth: 10, font: { size: 11 } } } } }
                 });
             }
         }

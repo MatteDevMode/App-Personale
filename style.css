@@ -812,18 +812,156 @@ h1 {
   .sidebar {
     width: 100%;
     height: auto;
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 30;
     flex-direction: row;
     flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    padding: 0.6rem 0.85rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
   }
 
-  nav {
+  .sidebar .brand {
+    order: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .sidebar .brand-name {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sidebar .brand-mark {
+    width: 26px;
+    height: 26px;
+  }
+
+  .sidebar .brand-mark svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .sidebar .sidebar-footer {
+    order: 2;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
     flex-direction: row;
-    flex-wrap: wrap;
+    gap: 4px;
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .sidebar .theme-toggle,
+  .sidebar .logout-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--bg-card);
+  }
+
+  .sidebar .theme-toggle span,
+  .sidebar .logout-btn span {
+    display: none;
+  }
+
+  .sidebar .nav-wrap {
+    order: 3;
+    flex: 1 0 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .sidebar .nav-wrap::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-section-label {
+    display: none;
+  }
+
+  .nav-wrap nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 6px;
+    width: max-content;
+  }
+
+  .nav-item {
+    padding: 7px 12px;
+    font-size: 12.5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .nav-item .soon {
+    display: none;
   }
 
   main {
-    padding: 1.5rem 1.25rem;
+    padding: 1.25rem 1rem;
+  }
+
+  h1 {
+    font-size: 21px;
+  }
+
+  .todo-top {
+    gap: 0.6rem;
+  }
+
+  .section-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .acc-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .resell-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .row-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .cal-day {
+    min-height: 58px;
+    padding: 4px;
+  }
+
+  .cal-pill {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+
+  .cal-nav-title {
+    font-size: 14px;
+  }
+
+  input,
+  select,
+  textarea,
+  .quick-add-bar input {
+    font-size: 16px;
+  }
+
+  .modal-box {
+    padding: 1.25rem 1rem;
+  }
+
+  .chart-wrap {
+    height: 180px;
   }
 }
 
@@ -1238,6 +1376,11 @@ h1 {
   font-weight: 500;
   color: var(--text-secondary);
   margin: 0 0 10px;
+}
+
+.chart-wrap {
+  position: relative;
+  height: 220px;
 }
 
 .chart-card canvas {
