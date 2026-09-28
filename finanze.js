@@ -1,5 +1,4 @@
 (function () {
-    const STORAGE_KEY = 'finanzeAppData';
     const PALETTE = ['#6C8CF5', '#9B7CF8', '#3FCFA0', '#5AB7E8', '#C77DF0', '#4FD1C5', '#E0B34D'];
 
     function pad2(n) { return String(n).padStart(2, '0'); }
@@ -37,12 +36,15 @@
         };
     }
 
-    let data;
-    function loadData() {
-        try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) return JSON.parse(raw); } catch (e) { }
-        return defaultData();
+    let data = defaultData();
+    let docRef = null;
+    let unsubscribe = null;
+    let ready = false;
+
+    function saveData() {
+        if (!docRef) return;
+        docRef.set(data).catch(err => console.error('Errore salvataggio Finanze:', err));
     }
-    function saveData() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) { } }
 
     function accById(id) { return data.accounts.find(a => a.id === id); }
     function catById(id) { return data.categories.find(c => c.id === id); }
@@ -720,14 +722,42 @@
     }
 
     // ---------- Init ----------
-    function init() {
-        data = loadData();
-        renderShell();
-        renderContent();
+    function renderLoading() {
+        const page = document.getElementById('page-finanze');
+        if (page) page.innerHTML = '<p class="empty-hint">Caricamento...</p>';
     }
 
-    window.Finanze = { onShow: function () { renderContent(); } };
+    function startForUser(uid) {
+        ready = false;
+        if (unsubscribe) unsubscribe();
+        renderLoading();
+        docRef = window.db.collection('users').doc(uid).collection('modules').doc('finanze');
 
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-    else init();
+        unsubscribe = docRef.onSnapshot(snap => {
+            if (snap.exists) {
+                data = snap.data();
+            } else {
+                data = defaultData();
+                docRef.set(data).catch(err => console.error('Errore inizializzazione Finanze:', err));
+            }
+            if (!ready) { ready = true; renderShell(); }
+            renderContent();
+        }, err => {
+            console.error('Errore lettura Finanze:', err);
+            renderLoading();
+        });
+    }
+
+    function stopForLogout() {
+        if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+        docRef = null;
+        ready = false;
+        data = defaultData();
+    }
+
+    window.Finanze = { onShow: function () { if (ready) renderContent(); } };
+
+    window.addEventListener('app:authReady', e => startForUser(e.detail.uid));
+    window.addEventListener('app:authLoggedOut', stopForLogout);
+    if (window.currentUser) startForUser(window.currentUser.uid);
 })();

@@ -1,5 +1,4 @@
 (function () {
-    const STORAGE_KEY = 'diarioAppData';
 
     function pad2(n) { return String(n).padStart(2, '0'); }
     function formatDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
@@ -55,15 +54,15 @@
     function promptForToday() { return PROMPTS[dayOfYear(todayStr()) % PROMPTS.length]; }
 
     // ---------- Data ----------
-    let data;
-    function loadData() {
-        try {
-            const raw = localStorage.getItem(STORAGE_KEY);
-            if (raw) return JSON.parse(raw);
-        } catch (e) { }
-        return { entries: [] };
+    let data = { entries: [] };
+    let docRef = null;
+    let unsubscribe = null;
+    let ready = false;
+
+    function saveData() {
+        if (!docRef) return;
+        docRef.set(data).catch(err => console.error('Errore salvataggio Diario:', err));
     }
-    function saveData() { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) { } }
 
     // ---------- State ----------
     const state = {
@@ -314,14 +313,42 @@
     }
 
     // ---------- Init ----------
-    function init() {
-        data = loadData();
-        renderShell();
-        renderContent();
+    function renderLoading() {
+        const page = document.getElementById('page-diario');
+        if (page) page.innerHTML = '<p class="empty-hint">Caricamento...</p>';
     }
 
-    window.Diario = { onShow: function () { renderContent(); } };
+    function startForUser(uid) {
+        ready = false;
+        if (unsubscribe) unsubscribe();
+        renderLoading();
+        docRef = window.db.collection('users').doc(uid).collection('modules').doc('diario');
 
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-    else init();
+        unsubscribe = docRef.onSnapshot(snap => {
+            if (snap.exists) {
+                data = snap.data();
+            } else {
+                data = { entries: [] };
+                docRef.set(data).catch(err => console.error('Errore inizializzazione Diario:', err));
+            }
+            if (!ready) { ready = true; renderShell(); }
+            renderContent();
+        }, err => {
+            console.error('Errore lettura Diario:', err);
+            renderLoading();
+        });
+    }
+
+    function stopForLogout() {
+        if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+        docRef = null;
+        ready = false;
+        data = { entries: [] };
+    }
+
+    window.Diario = { onShow: function () { if (ready) renderContent(); } };
+
+    window.addEventListener('app:authReady', e => startForUser(e.detail.uid));
+    window.addEventListener('app:authLoggedOut', stopForLogout);
+    if (window.currentUser) startForUser(window.currentUser.uid);
 })();
