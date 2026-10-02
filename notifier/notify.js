@@ -81,8 +81,8 @@ async function main() {
         catch (err) { failed = true; console.error('Errore (' + label + '):', err.message); }
     }
 
-    // Messaggio di prova quando lanci il workflow a mano
-    if (process.env.GITHUB_EVENT_NAME === 'workflow_dispatch') {
+    // Messaggio di prova solo se spunti "test" quando lanci il workflow a mano
+    if (process.env.TEST_MESSAGE === 'true') {
         await attempt('test', () => send('✅ Il bot funziona. Le notifiche della tua app sono attive.'));
     }
 
