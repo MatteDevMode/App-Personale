@@ -1,0 +1,10 @@
+{
+    "name": "notifier",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Notifiche Telegram per La mia app",
+    "main": "notify.js",
+    "dependencies": {
+        "firebase-admin": "^12.0.0"
+    }
+}
