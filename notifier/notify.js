@@ -9,6 +9,8 @@ const DIARY_UNTIL = 23 * 60 + 30;     // oltre le 23:30 il promemoria non viene 
 const BUDGET_WARN_PCT = 80;
 const BUDGET_OVER_PCT = 100;
 const TASK_REMINDER_MIN = 30;         // minuti prima dell'orario di inizio
+const START_GRACE_MIN = 10;           // l'avviso "ora" parte anche con fino a 10 min di ritardo
+const APP_URL = 'https://mattedevmode.github.io/App-Personale/';
 
 // ---------- Segreti (da GitHub Secrets) ----------
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -55,7 +57,12 @@ async function send(text) {
     const res = await fetch('https://api.telegram.org/bot' + TOKEN + '/sendMessage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chat_id: CHAT_ID, text, parse_mode: 'HTML' })
+        body: JSON.stringify({
+            chat_id: CHAT_ID,
+            text,
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: [[{ text: '📱 Apri l\'app', url: APP_URL }]] }
+        })
     });
     if (!res.ok) {
         const body = await res.text();
@@ -158,17 +165,25 @@ async function main() {
     }
     state.budget = newBudgetState; // tiene solo il mese corrente
 
-    // 4) Promemoria attività 30 minuti prima
-    const remindedToday = (state.reminded || []).filter(k => k.endsWith('|' + now.date));
+    // 4) Promemoria attività: 30 minuti prima e all'ora di inizio
+    const remindedToday = (state.reminded || []).filter(k => k.includes('|' + now.date));
     for (const t of tasks) {
         if (t.completed || t.date !== now.date || !t.startTime) continue;
-        const key = t.id + '|' + now.date;
-        if (remindedToday.includes(key)) continue;
         const until = toMin(t.startTime) - now.minutes;
-        if (until > 0 && until <= TASK_REMINDER_MIN) {
+
+        const preKey = t.id + '|' + now.date;
+        if (until > 0 && until <= TASK_REMINDER_MIN && !remindedToday.includes(preKey)) {
             await attempt('promemoria ' + t.title, async () => {
                 await send('⏰ <b>Tra ' + until + ' minuti</b>\n' + t.startTime + ' – ' + esc(t.title));
-                remindedToday.push(key);
+                remindedToday.push(preKey);
+            });
+        }
+
+        const startKey = preKey + '|start';
+        if (until <= 0 && until > -START_GRACE_MIN && !remindedToday.includes(startKey)) {
+            await attempt('inizio ' + t.title, async () => {
+                await send('🔔 <b>Ora</b>\n' + t.startTime + ' – ' + esc(t.title));
+                remindedToday.push(startKey);
             });
         }
     }
