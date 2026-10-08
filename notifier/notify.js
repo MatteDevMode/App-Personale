@@ -6,11 +6,14 @@ const MORNING_FROM = 7 * 60;          // 07:00
 const MORNING_UNTIL = 11 * 60;        // oltre le 11:00 il riepilogo non viene più mandato
 const DIARY_FROM = 20 * 60 + 30;      // 20:30
 const DIARY_UNTIL = 23 * 60 + 30;     // oltre le 23:30 il promemoria non viene più mandato
+const WEEKLY_FROM = 20 * 60;          // domenica 21:00
+const WEEKLY_UNTIL = 23 * 60 + 30;    // oltre le 23:30 il riepilogo settimanale non viene più mandato
 const BUDGET_WARN_PCT = 80;
 const BUDGET_OVER_PCT = 100;
 const TASK_REMINDER_MIN = 30;         // minuti prima dell'orario di inizio
 const START_GRACE_MIN = 10;           // l'avviso "ora" parte anche con fino a 10 min di ritardo
 const APP_URL = 'https://mattedevmode.github.io/App-Personale/';
+const MOODS = { ottimo: '😄 Ottimo', bene: '🙂 Bene', neutro: '😐 Neutro', giu: '😞 Giù', arrabbiato: '😠 Arrabbiato' };
 
 // ---------- Segreti (da GitHub Secrets) ----------
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
@@ -43,6 +46,21 @@ function romeNow() {
 function toMin(hhmm) {
     const [h, m] = hhmm.split(':').map(Number);
     return h * 60 + m;
+}
+
+function addDays(dateStr, n) {
+    const d = new Date(dateStr + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+}
+
+function weekdayOf(dateStr) {
+    return new Date(dateStr + 'T12:00:00Z').getUTCDay(); // 0 = domenica
+}
+
+function ddmm(dateStr) {
+    const [, m, d] = dateStr.split('-');
+    return d + '/' + m;
 }
 
 function esc(s) {
@@ -80,7 +98,10 @@ async function main() {
     const now = romeNow();
     const stateRef = db.collection('users').doc(UID).collection('modules').doc('notifiche');
     const stateSnap = await stateRef.get();
-    const state = Object.assign({ lastMorning: '', lastDiary: '', budget: {}, reminded: [] }, stateSnap.exists ? stateSnap.data() : {});
+    const state = Object.assign(
+        { lastMorning: '', lastDiary: '', lastWeekly: '', budget: {}, reminded: [], doneByDay: {} },
+        stateSnap.exists ? stateSnap.data() : {}
+    );
     let failed = false;
 
     async function attempt(label, fn) {
@@ -188,6 +209,74 @@ async function main() {
         }
     }
     state.reminded = remindedToday;
+
+    // 5) Conteggio delle attività completate oggi (l'app elimina le completate il giorno dopo)
+    const doneToday = tasks.filter(t => t.completed && t.completedAt === now.date).length;
+    state.doneByDay = Object.assign({}, state.doneByDay);
+    state.doneByDay[now.date] = Math.max(state.doneByDay[now.date] || 0, doneToday);
+    const cutoff = addDays(now.date, -14);
+    Object.keys(state.doneByDay).forEach(k => { if (k < cutoff) delete state.doneByDay[k]; });
+
+    // 6) Riepilogo settimanale (domenica sera, oppure a richiesta dal workflow)
+    const weeklyTest = process.env.WEEKLY_TEST === 'true';
+    const weeklyDue = weekdayOf(now.date) === 0 && now.minutes >= WEEKLY_FROM && now.minutes < WEEKLY_UNTIL && state.lastWeekly !== now.date;
+    if (weeklyTest || weeklyDue) {
+        await attempt('riepilogo settimanale', async () => {
+            const from = addDays(now.date, -6);
+            const to = now.date;
+            const inRange = d => !!d && d >= from && d <= to;
+
+            // Attività
+            const done = Object.keys(state.doneByDay).filter(inRange).reduce((s, k) => s + state.doneByDay[k], 0);
+            const overdue = tasks.filter(t => t.date && t.date < now.date && !t.completed).length;
+            const upcoming = tasks.filter(t => !t.completed && t.date && t.date > to && t.date <= addDays(to, 7)).length;
+
+            // Soldi
+            const week = (fin.transactions || []).filter(t => inRange(t.date));
+            const expenses = week.filter(t => t.type === 'expense');
+            const expenseTot = expenses.reduce((s, t) => s + t.amount, 0);
+            const incomeTot = week.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+            const byCat = {};
+            expenses.forEach(t => { byCat[t.categoryId] = (byCat[t.categoryId] || 0) + t.amount; });
+            const top = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]).slice(0, 3).map(id => {
+                const c = (fin.categories || []).find(x => x.id === id);
+                return esc(c ? c.name : 'Altro') + ' ' + eur(byCat[id]);
+            });
+
+            // Diario
+            const diario = await readModule('diario', { entries: [] });
+            const entries = (diario.entries || []).filter(e => inRange(e.date));
+            const days = new Set(entries.map(e => e.date)).size;
+            const moodCount = {};
+            entries.forEach(e => { if (MOODS[e.mood]) moodCount[e.mood] = (moodCount[e.mood] || 0) + 1; });
+            const topMood = Object.keys(moodCount).sort((a, b) => moodCount[b] - moodCount[a])[0];
+
+            let msg = '📊 <b>Riepilogo della settimana</b>\n' + ddmm(from) + ' – ' + ddmm(to) + '\n';
+
+            msg += '\n✅ <b>Attività</b>\nCompletate: ' + done;
+            if (overdue) msg += '\nScadute: ' + overdue;
+            msg += '\nIn arrivo nei prossimi 7 giorni: ' + upcoming + '\n';
+
+            msg += '\n💶 <b>Soldi</b>\n';
+            if (expenseTot > 0 || incomeTot > 0) {
+                msg += 'Uscite: ' + eur(expenseTot) + '\nEntrate: ' + eur(incomeTot) + '\n';
+                if (top.length) msg += 'Dove hai speso di più: ' + top.join(', ') + '\n';
+            } else {
+                msg += 'Nessun movimento questa settimana.\n';
+            }
+
+            msg += '\n📖 <b>Diario</b>\n';
+            if (entries.length) {
+                msg += 'Voci: ' + entries.length + ' in ' + days + (days === 1 ? ' giorno' : ' giorni') + '\n';
+                if (topMood) msg += 'Umore più frequente: ' + MOODS[topMood] + '\n';
+            } else {
+                msg += 'Nessuna voce questa settimana.\n';
+            }
+
+            await send(msg.trim());
+            if (!weeklyTest) state.lastWeekly = now.date;
+        });
+    }
 
     await stateRef.set(state);
     if (failed) process.exit(1);

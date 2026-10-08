@@ -9,6 +9,10 @@ on:
         description: 'Invia un messaggio di prova su Telegram'
         type: boolean
         default: false
+      weekly:
+        description: 'Invia subito il riepilogo settimanale (prova)'
+        type: boolean
+        default: false
 
 concurrency:
   group: notifiche
@@ -33,6 +37,7 @@ jobs:
         working-directory: notifier
         env:
           TEST_MESSAGE: ${{ inputs.test }}
+          WEEKLY_TEST: ${{ inputs.weekly }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           FIREBASE_UID: ${{ secrets.FIREBASE_UID }}
