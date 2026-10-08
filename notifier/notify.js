@@ -6,7 +6,7 @@ const MORNING_FROM = 7 * 60;          // 07:00
 const MORNING_UNTIL = 11 * 60;        // oltre le 11:00 il riepilogo non viene più mandato
 const DIARY_FROM = 20 * 60 + 30;      // 20:30
 const DIARY_UNTIL = 23 * 60 + 30;     // oltre le 23:30 il promemoria non viene più mandato
-const WEEKLY_FROM = 20 * 60;          // domenica 21:00
+const WEEKLY_FROM = 21 * 60;          // domenica 21:00
 const WEEKLY_UNTIL = 23 * 60 + 30;    // oltre le 23:30 il riepilogo settimanale non viene più mandato
 const BUDGET_WARN_PCT = 80;
 const BUDGET_OVER_PCT = 100;
@@ -88,6 +88,18 @@ async function send(text) {
     }
 }
 
+async function sendDocument(filename, content, caption) {
+    const form = new FormData();
+    form.append('chat_id', CHAT_ID);
+    form.append('caption', caption);
+    form.append('document', new Blob([content], { type: 'application/json' }), filename);
+    const res = await fetch('https://api.telegram.org/bot' + TOKEN + '/sendDocument', { method: 'POST', body: form });
+    if (!res.ok) {
+        const body = await res.text();
+        throw new Error('Telegram ' + res.status + ': ' + body);
+    }
+}
+
 async function readModule(name, fallback) {
     const snap = await db.collection('users').doc(UID).collection('modules').doc(name).get();
     return snap.exists ? snap.data() : fallback;
@@ -99,7 +111,7 @@ async function main() {
     const stateRef = db.collection('users').doc(UID).collection('modules').doc('notifiche');
     const stateSnap = await stateRef.get();
     const state = Object.assign(
-        { lastMorning: '', lastDiary: '', lastWeekly: '', budget: {}, reminded: [], doneByDay: {} },
+        { lastMorning: '', lastDiary: '', lastWeekly: '', lastBackup: '', budget: {}, reminded: [], doneByDay: {} },
         stateSnap.exists ? stateSnap.data() : {}
     );
     let failed = false;
@@ -219,7 +231,9 @@ async function main() {
 
     // 6) Riepilogo settimanale (domenica sera, oppure a richiesta dal workflow)
     const weeklyTest = process.env.WEEKLY_TEST === 'true';
-    const weeklyDue = weekdayOf(now.date) === 0 && now.minutes >= WEEKLY_FROM && now.minutes < WEEKLY_UNTIL && state.lastWeekly !== now.date;
+    const inWeeklyWindow = weekdayOf(now.date) === 0 && now.minutes >= WEEKLY_FROM && now.minutes < WEEKLY_UNTIL;
+    const weeklyDue = inWeeklyWindow && state.lastWeekly !== now.date;
+    const backupDue = inWeeklyWindow && state.lastBackup !== now.date;
     if (weeklyTest || weeklyDue) {
         await attempt('riepilogo settimanale', async () => {
             const from = addDays(now.date, -6);
@@ -275,6 +289,21 @@ async function main() {
 
             await send(msg.trim());
             if (!weeklyTest) state.lastWeekly = now.date;
+        });
+    }
+
+    // 7) Backup settimanale su Telegram (stesso formato dell'esportazione dall'app)
+    if (weeklyTest || backupDue) {
+        await attempt('backup', async () => {
+            const diarioData = await readModule('diario', { entries: [] });
+            const backup = {
+                app: 'app-personale',
+                version: 1,
+                exportedAt: new Date().toISOString(),
+                modules: { todo, diario: diarioData, finanze: fin }
+            };
+            await sendDocument('backup-' + now.date + '.json', JSON.stringify(backup, null, 2), '💾 Backup settimanale (' + ddmm(now.date) + ')');
+            if (!weeklyTest) state.lastBackup = now.date;
         });
     }
 

@@ -10,7 +10,7 @@ on:
         type: boolean
         default: false
       weekly:
-        description: 'Invia subito il riepilogo settimanale (prova)'
+        description: 'Invia subito riepilogo e backup settimanali (prova)'
         type: boolean
         default: false
 
@@ -42,4 +42,4 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           FIREBASE_UID: ${{ secrets.FIREBASE_UID }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: node notify.js
+        run: node notify.js 
