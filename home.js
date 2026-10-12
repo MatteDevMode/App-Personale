@@ -181,7 +181,9 @@
 
         page.innerHTML =
             '<div class="page-header"><p class="eyebrow" style="text-transform:capitalize;">' + dateLabel + '</p><h1>' + greet + '</h1></div>' +
-            '<div class="home-grid">' + todayCard() + financeCard() + diaryCard() + tradingCard() + '</div>';
+            '<div id="mattyHome"></div><div class="home-grid">' + todayCard() + financeCard() + diaryCard() + tradingCard() + '</div>';
+
+        if (window.Matty) window.Matty.mountHome(document.getElementById('mattyHome'));
 
         page.querySelectorAll('[data-go]').forEach(el => {
             el.addEventListener('click', () => switchPage(el.getAttribute('data-go')));
