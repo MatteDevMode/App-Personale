@@ -1,10 +1,11 @@
 (function () {
     const FORMAT = 'app-personale';
-    const MODULES = ['todo', 'diario', 'finanze'];
+    const MODULES = ['todo', 'diario', 'finanze', 'trading'];
     const REQUIRED = {
         todo: ['tasks', 'categories'],
         diario: ['entries'],
-        finanze: ['accounts', 'categories', 'transactions', 'items']
+        finanze: ['accounts', 'categories', 'transactions', 'items'],
+        trading: ['strategies', 'trades']
     };
 
     function pad2(n) { return String(n).padStart(2, '0'); }
@@ -62,6 +63,7 @@
         if (valid.todo) parts.push(valid.todo.tasks.length + ' attività');
         if (valid.diario) parts.push(valid.diario.entries.length + ' voci di diario');
         if (valid.finanze) parts.push(valid.finanze.transactions.length + ' movimenti');
+        if (valid.trading) parts.push(valid.trading.trades.length + ' trade');
         return parts.join(', ');
     }
 

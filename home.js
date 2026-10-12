@@ -12,7 +12,7 @@
     const WEEKDAYS = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
     const MOOD_EMOJI = { ottimo: '😄', bene: '🙂', neutro: '😐', giu: '😞', arrabbiato: '😠' };
 
-    let todo, diario, fin;
+    let todo, diario, fin, trading;
     let unsubs = [];
     let loaded = {};
 
@@ -20,7 +20,8 @@
         todo = { tasks: [], categories: [] };
         diario = { entries: [] };
         fin = { accounts: [], categories: [], transactions: [] };
-        loaded = { todo: false, diario: false, finanze: false };
+        trading = { strategies: [], trades: [] };
+        loaded = { todo: false, diario: false, finanze: false, trading: false };
     }
     resetData();
 
@@ -152,11 +153,24 @@
         return html + '</div>';
     }
 
+    function tradingCard() {
+        const ym = todayStr().slice(0, 7);
+        const month = MONTHS[new Date().getMonth()];
+        const list = (trading.trades || []).filter(t => (t.date || '').slice(0, 7) === ym);
+        const head = '<div class="home-card" data-go="trading"><div class="home-head"><p class="home-title">Trading</p><span class="home-link">Apri →</span></div>';
+        if (!list.length) return head + '<p class="home-big" style="font-size:20px;">Nessun trade</p><p class="home-sub">a ' + month + '</p></div>';
+        const net = list.reduce((s, t) => s + (t.result || 0), 0);
+        const wins = list.filter(t => t.result > 0).length;
+        const color = net > 0 ? 'var(--teal)' : (net < 0 ? '#E8604C' : 'inherit');
+        return head + '<p class="home-big" style="color:' + color + ';">' + (net > 0 ? '+' : '') + eur(net) + '</p>' +
+            '<p class="home-sub">' + list.length + ' trade · win rate ' + Math.round(wins / list.length * 100) + '% · ' + month + '</p></div>';
+    }
+
     // ---------- Render ----------
     function render() {
         const page = document.getElementById('page-home');
         if (!page) return;
-        if (!loaded.todo || !loaded.diario || !loaded.finanze) {
+        if (!loaded.todo || !loaded.diario || !loaded.finanze || !loaded.trading) {
             page.innerHTML = '<p class="empty-hint">Caricamento...</p>';
             return;
         }
@@ -167,7 +181,7 @@
 
         page.innerHTML =
             '<div class="page-header"><p class="eyebrow" style="text-transform:capitalize;">' + dateLabel + '</p><h1>' + greet + '</h1></div>' +
-            '<div class="home-grid">' + todayCard() + financeCard() + diaryCard() + '</div>';
+            '<div class="home-grid">' + todayCard() + financeCard() + diaryCard() + tradingCard() + '</div>';
 
         page.querySelectorAll('[data-go]').forEach(el => {
             el.addEventListener('click', () => switchPage(el.getAttribute('data-go')));
@@ -195,6 +209,7 @@
         listen(base.doc('todo'), 'todo', d => { todo = Object.assign({ tasks: [], categories: [] }, d); });
         listen(base.doc('diario'), 'diario', d => { diario = Object.assign({ entries: [] }, d); });
         listen(base.doc('finanze'), 'finanze', d => { fin = Object.assign({ accounts: [], categories: [], transactions: [] }, d); });
+        listen(base.doc('trading'), 'trading', d => { trading = Object.assign({ strategies: [], trades: [] }, d); });
     }
 
     function stop() {

@@ -287,6 +287,16 @@ async function main() {
                 msg += 'Nessuna voce questa settimana.\n';
             }
 
+            // Trading
+            const trading = await readModule('trading', { trades: [] });
+            const trades = (trading.trades || []).filter(t => inRange(t.date));
+            if (trades.length) {
+                const wins = trades.filter(t => t.result > 0).length;
+                const losses = trades.filter(t => t.result < 0).length;
+                const net = trades.reduce((s, t) => s + (t.result || 0), 0);
+                msg += '\n📈 <b>Trading</b>\nTrade: ' + trades.length + ' (' + wins + ' vinti, ' + losses + ' persi)\nWin rate: ' + Math.round(wins / trades.length * 100) + '%\nRisultato: ' + (net > 0 ? '+' : '') + eur(net) + '\n';
+            }
+
             await send(msg.trim());
             if (!weeklyTest) state.lastWeekly = now.date;
         });
@@ -296,11 +306,12 @@ async function main() {
     if (weeklyTest || backupDue) {
         await attempt('backup', async () => {
             const diarioData = await readModule('diario', { entries: [] });
+            const tradingData = await readModule('trading', { strategies: [], trades: [] });
             const backup = {
                 app: 'app-personale',
                 version: 1,
                 exportedAt: new Date().toISOString(),
-                modules: { todo, diario: diarioData, finanze: fin }
+                modules: { todo, diario: diarioData, finanze: fin, trading: tradingData }
             };
             await sendDocument('backup-' + now.date + '.json', JSON.stringify(backup, null, 2), '💾 Backup settimanale (' + ddmm(now.date) + ')');
             if (!weeklyTest) state.lastBackup = now.date;
