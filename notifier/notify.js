@@ -11,6 +11,7 @@ const WEEKLY_UNTIL = 23 * 60 + 30;    // oltre le 23:30 il riepilogo settimanale
 const BUDGET_WARN_PCT = 80;
 const BUDGET_OVER_PCT = 100;
 const TASK_REMINDER_MIN = 30;         // minuti prima dell'orario di inizio
+const STALE_DAYS = 30;                // oggetti in vendita da questi giorni: avviso
 const START_GRACE_MIN = 10;           // l'avviso "ora" parte anche con fino a 10 min di ritardo
 const APP_URL = 'https://mattedevmode.github.io/App-Personale/';
 const MOODS = { ottimo: '😄 Ottimo', bene: '🙂 Bene', neutro: '😐 Neutro', giu: '😞 Giù', arrabbiato: '😠 Arrabbiato' };
@@ -46,6 +47,10 @@ function romeNow() {
 function toMin(hhmm) {
     const [h, m] = hhmm.split(':').map(Number);
     return h * 60 + m;
+}
+
+function daysBetween(a, b) {
+    return Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 86400000);
 }
 
 function addDays(dateStr, n) {
@@ -111,7 +116,7 @@ async function main() {
     const stateRef = db.collection('users').doc(UID).collection('modules').doc('notifiche');
     const stateSnap = await stateRef.get();
     const state = Object.assign(
-        { lastMorning: '', lastDiary: '', lastWeekly: '', lastBackup: '', budget: {}, reminded: [], doneByDay: {} },
+        { lastMorning: '', lastDiary: '', lastWeekly: '', lastBackup: '', lastStale: '', staleAlerted: [], budget: {}, reminded: [], doneByDay: {} },
         stateSnap.exists ? stateSnap.data() : {}
     );
     let failed = false;
@@ -153,6 +158,22 @@ async function main() {
                 await send(msg.trim());
             }
             state.lastMorning = now.date;
+        });
+    }
+
+    // 1b) Oggetti in vendita da troppo tempo (una volta al giorno, al mattino)
+    if (now.minutes >= MORNING_FROM && now.minutes < MORNING_UNTIL && state.lastStale !== now.date) {
+        const resell = await readModule('reselling', { items: [] });
+        const stale = (resell.items || []).filter(i => i.status === 'in-vendita' && daysBetween(i.listDate || i.buyDate || now.date, now.date) >= STALE_DAYS);
+        const fresh = stale.filter(i => !(state.staleAlerted || []).includes(i.id));
+        await attempt('reselling fermi', async () => {
+            if (fresh.length) {
+                await send('⏳ <b>In vendita da più di ' + STALE_DAYS + ' giorni</b>\n' +
+                    fresh.map(i => '• ' + esc(i.name) + ' (' + daysBetween(i.listDate || i.buyDate || now.date, now.date) + ' giorni)').join('\n') +
+                    '\n\nForse è il momento di abbassare il prezzo.');
+            }
+            state.staleAlerted = stale.map(i => i.id);
+            state.lastStale = now.date;
         });
     }
 
@@ -297,6 +318,17 @@ async function main() {
                 msg += '\n📈 <b>Trading</b>\nTrade: ' + trades.length + ' (' + wins + ' vinti, ' + losses + ' persi)\nWin rate: ' + Math.round(wins / trades.length * 100) + '%\nRisultato: ' + (net > 0 ? '+' : '') + eur(net) + '\n';
             }
 
+            // Reselling
+            const resell = await readModule('reselling', { items: [] });
+            const rItems = resell.items || [];
+            const rSold = rItems.filter(i => i.status === 'venduto' && inRange(i.soldDate));
+            if (rSold.length || rItems.some(i => i.status !== 'venduto')) {
+                const rNet = rSold.reduce((s, i) => s + ((i.soldPrice || 0) - (i.costs || 0)), 0);
+                const rProfit = rSold.reduce((s, i) => s + ((i.soldPrice || 0) - (i.costs || 0) - (i.buyPrice || 0)), 0);
+                msg += '\n🏷️ <b>Reselling</b>\nVenduti: ' + rSold.length + ' · incassato ' + eur(rNet) + '\nProfitto: ' + (rProfit > 0 ? '+' : '') + eur(rProfit) +
+                    '\nIn vendita: ' + rItems.filter(i => i.status === 'in-vendita').length + '\n';
+            }
+
             await send(msg.trim());
             if (!weeklyTest) state.lastWeekly = now.date;
         });
@@ -307,11 +339,12 @@ async function main() {
         await attempt('backup', async () => {
             const diarioData = await readModule('diario', { entries: [] });
             const tradingData = await readModule('trading', { strategies: [], trades: [] });
+            const resellingData = await readModule('reselling', { items: [] });
             const backup = {
                 app: 'app-personale',
                 version: 1,
                 exportedAt: new Date().toISOString(),
-                modules: { todo, diario: diarioData, finanze: fin, trading: tradingData }
+                modules: { todo, diario: diarioData, finanze: fin, trading: tradingData, reselling: resellingData }
             };
             await sendDocument('backup-' + now.date + '.json', JSON.stringify(backup, null, 2), '💾 Backup settimanale (' + ddmm(now.date) + ')');
             if (!weeklyTest) state.lastBackup = now.date;

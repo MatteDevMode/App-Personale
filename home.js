@@ -12,7 +12,7 @@
     const WEEKDAYS = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
     const MOOD_EMOJI = { ottimo: '😄', bene: '🙂', neutro: '😐', giu: '😞', arrabbiato: '😠' };
 
-    let todo, diario, fin, trading;
+    let todo, diario, fin, trading, reselling;
     let unsubs = [];
     let loaded = {};
 
@@ -21,7 +21,8 @@
         diario = { entries: [] };
         fin = { accounts: [], categories: [], transactions: [] };
         trading = { strategies: [], trades: [] };
-        loaded = { todo: false, diario: false, finanze: false, trading: false };
+        reselling = { items: [] };
+        loaded = { todo: false, diario: false, finanze: false, trading: false, reselling: false };
     }
     resetData();
 
@@ -153,6 +154,23 @@
         return html + '</div>';
     }
 
+    function resellingCard() {
+        const ym = todayStr().slice(0, 7);
+        const items = reselling.items || [];
+        const month = MONTHS[new Date().getMonth()];
+        const head = '<div class="home-card" data-go="reselling"><div class="home-head"><p class="home-title">Reselling</p><span class="home-link">Apri →</span></div>';
+        if (!items.length) return head + '<p class="home-big" style="font-size:20px;">Nessun oggetto</p><p class="home-sub">Aggiungi il primo</p></div>';
+        const sold = items.filter(i => i.status === 'venduto' && (i.soldDate || '').slice(0, 7) === ym);
+        const profit = sold.reduce((s, i) => s + ((i.soldPrice || 0) - (i.costs || 0) - (i.buyPrice || 0)), 0);
+        const forSale = items.filter(i => i.status !== 'venduto').length;
+        const today = parseDateStr(todayStr());
+        const stale = items.filter(i => i.status === 'in-vendita' && Math.round((today - parseDateStr(i.listDate || i.buyDate || todayStr())) / 86400000) >= 30).length;
+        const color = profit > 0 ? 'var(--teal)' : (profit < 0 ? '#E8604C' : 'inherit');
+        return head + '<p class="home-big" style="color:' + color + ';">' + (profit > 0 ? '+' : '') + eur(profit) + '</p>' +
+            '<p class="home-sub">' + sold.length + ' venduti a ' + month + ' · ' + forSale + ' da vendere</p>' +
+            (stale ? '<p class="home-warn">⏳ ' + stale + (stale === 1 ? ' oggetto fermo' : ' oggetti fermi') + ' da 30+ giorni</p>' : '') + '</div>';
+    }
+
     function tradingCard() {
         const ym = todayStr().slice(0, 7);
         const month = MONTHS[new Date().getMonth()];
@@ -170,7 +188,7 @@
     function render() {
         const page = document.getElementById('page-home');
         if (!page) return;
-        if (!loaded.todo || !loaded.diario || !loaded.finanze || !loaded.trading) {
+        if (!loaded.todo || !loaded.diario || !loaded.finanze || !loaded.trading || !loaded.reselling) {
             page.innerHTML = '<p class="empty-hint">Caricamento...</p>';
             return;
         }
@@ -181,7 +199,7 @@
 
         page.innerHTML =
             '<div class="page-header"><p class="eyebrow" style="text-transform:capitalize;">' + dateLabel + '</p><h1>' + greet + '</h1></div>' +
-            '<div id="mattyHome"></div><div class="home-grid">' + todayCard() + financeCard() + diaryCard() + tradingCard() + '</div>';
+            '<div id="mattyHome"></div><div class="home-grid">' + todayCard() + financeCard() + diaryCard() + tradingCard() + resellingCard() + '</div>';
 
         if (window.Matty) window.Matty.mountHome(document.getElementById('mattyHome'));
 
@@ -212,6 +230,7 @@
         listen(base.doc('diario'), 'diario', d => { diario = Object.assign({ entries: [] }, d); });
         listen(base.doc('finanze'), 'finanze', d => { fin = Object.assign({ accounts: [], categories: [], transactions: [] }, d); });
         listen(base.doc('trading'), 'trading', d => { trading = Object.assign({ strategies: [], trades: [] }, d); });
+        listen(base.doc('reselling'), 'reselling', d => { reselling = Object.assign({ items: [] }, d); });
     }
 
     function stop() {

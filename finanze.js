@@ -30,9 +30,7 @@
                 { id: 'cat6', name: 'Altro', color: '#8890A6', budget: null },
                 { id: 'cat_reselling', name: 'Reselling', color: '#4FD1C5', budget: null }
             ],
-            transactions: [],
-            items: [],
-            settings: { resellingReinvestPct: 50 }
+            transactions: []
         };
     }
 
@@ -48,7 +46,6 @@
 
     function accById(id) { return data.accounts.find(a => a.id === id); }
     function catById(id) { return data.categories.find(c => c.id === id); }
-    function itemById(id) { return data.items.find(i => i.id === id); }
 
     function accountBalance(accId) {
         const acc = accById(accId);
@@ -88,7 +85,6 @@
             '<div class="view-switch">' +
             '<button id="fViewOverview">Panoramica</button>' +
             '<button id="fViewTx">Transazioni</button>' +
-            '<button id="fViewResell">Reselling</button>' +
             '</div>' +
             '</div>' +
             '<div id="finanzeContent"></div>' +
@@ -96,27 +92,19 @@
 
         document.getElementById('fViewOverview').onclick = () => { state.view = 'overview'; renderContent(); };
         document.getElementById('fViewTx').onclick = () => { state.view = 'transactions'; renderContent(); };
-        document.getElementById('fViewResell').onclick = () => { state.view = 'reselling'; renderContent(); };
     }
 
     function renderContent() {
         document.getElementById('fViewOverview').classList.toggle('active', state.view === 'overview');
         document.getElementById('fViewTx').classList.toggle('active', state.view === 'transactions');
-        document.getElementById('fViewResell').classList.toggle('active', state.view === 'reselling');
 
         const btn = document.getElementById('finNewBtn');
-        if (state.view === 'reselling') {
-            btn.innerHTML = plusIcon() + 'Nuovo oggetto';
-            btn.onclick = () => openItemModal('create', { date: todayStr() }, null);
-        } else {
-            btn.innerHTML = plusIcon() + 'Nuovo movimento';
-            btn.onclick = () => openTxModal('create', { type: 'expense', date: todayStr() }, null);
-        }
+        btn.innerHTML = plusIcon() + 'Nuovo movimento';
+        btn.onclick = () => openTxModal('create', { type: 'expense', date: todayStr() }, null);
 
         const c = document.getElementById('finanzeContent');
         if (state.view === 'overview') renderOverview(c);
-        else if (state.view === 'transactions') renderTransactions(c);
-        else renderReselling(c);
+        else renderTransactions(c);
     }
 
     function plusIcon() {
@@ -155,16 +143,6 @@
         html += '<div class="chart-card"><p class="chart-title">Entrate vs Uscite</p><div class="chart-wrap"><canvas id="chartIncomeExpense"></canvas></div></div>';
         html += '<div class="chart-card"><p class="chart-title">Spesa per categoria</p><div class="chart-wrap"><canvas id="chartCategory"></canvas></div></div>';
 
-        const resell = resellTotals();
-        html += '<div class="chart-card">' +
-            '<p class="chart-title">Reselling</p>' +
-            '<div class="resell-summary">' +
-            '<div class="resell-stat"><p>Profitto totale</p><p>' + eur(resell.profit) + '</p></div>' +
-            '<div class="resell-stat"><p>Disponibile per te</p><p>' + eur(resell.personal) + '</p></div>' +
-            '</div>' +
-            '<button class="icon-btn" id="goResellBtn">Vai al Reselling \u2192</button>' +
-            '</div>';
-
         container.innerHTML = html;
 
         container.querySelectorAll('.acc-card').forEach(el => {
@@ -172,7 +150,6 @@
         });
         document.getElementById('addAccBtn').onclick = () => openAccountModal(null);
         document.getElementById('manageCatsBtnF').onclick = () => openCategoryManagerF();
-        document.getElementById('goResellBtn').onclick = () => { state.view = 'reselling'; renderContent(); };
 
         bindPeriodSwitch(container, () => drawCharts());
         drawCharts();
@@ -566,158 +543,6 @@
         }
         draw();
         overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-        document.body.appendChild(overlay);
-    }
-
-    // ---------- Reselling ----------
-    function resellTotals() {
-        const sold = data.items.filter(i => i.status === 'venduto');
-        const invested = data.items.reduce((s, i) => s + (i.buyPrice || 0), 0);
-        const revenue = sold.reduce((s, i) => s + (i.sellPrice || 0), 0);
-        const profit = sold.reduce((s, i) => s + ((i.sellPrice || 0) - (i.buyPrice || 0)), 0);
-        const pct = data.settings.resellingReinvestPct;
-        return { invested, revenue, profit, reinvest: profit * pct / 100, personal: profit * (100 - pct) / 100 };
-    }
-
-    function itemCardHtml(item) {
-        const sold = item.status === 'venduto';
-        const color = sold ? '#3FCFA0' : '#6C8CF5';
-        let profitHtml = '';
-        if (sold) {
-            const profit = (item.sellPrice || 0) - (item.buyPrice || 0);
-            profitHtml = '<span class="item-profit" style="' + (profit < 0 ? 'color:#E8604C;' : '') + '">' + (profit >= 0 ? '+' : '') + eur(profit) + '</span>';
-        }
-        return '<div class="item-card" style="--item-color:' + color + ';" data-id="' + item.id + '">' +
-            '<div class="item-top"><span class="item-name">' + esc(item.name) + '</span>' + (sold ? profitHtml : '<span class="item-badge">In vendita</span>') + '</div>' +
-            '<p class="item-meta">Acquisto ' + eur(item.buyPrice) + (sold ? ' \u00b7 Vendita ' + eur(item.sellPrice) : '') + '</p>' +
-            '</div>';
-    }
-
-    function renderReselling(container) {
-        const t = resellTotals();
-        let html = '<div class="split-row">' +
-            '<span class="split-label">Percentuale da reinvestire nell\u2019attivit\u00e0</span>' +
-            '<input type="number" min="0" max="100" id="splitPct" value="' + data.settings.resellingReinvestPct + '" /><span style="color:var(--text-muted);font-size:13px;">%</span>' +
-            '</div>';
-
-        html += '<div class="resell-summary">' +
-            '<div class="resell-stat"><p>Investito totale</p><p>' + eur(t.invested) + '</p></div>' +
-            '<div class="resell-stat"><p>Incassato totale</p><p>' + eur(t.revenue) + '</p></div>' +
-            '<div class="resell-stat"><p>Profitto</p><p>' + eur(t.profit) + '</p></div>' +
-            '<div class="resell-stat"><p>Da reinvestire</p><p>' + eur(t.reinvest) + '</p></div>' +
-            '<div class="resell-stat"><p>Disponibile per te</p><p>' + eur(t.personal) + '</p></div>' +
-            '</div>';
-
-        const inVendita = data.items.filter(i => i.status === 'in-vendita');
-        const venduti = data.items.filter(i => i.status === 'venduto').sort((a, b) => (b.sellDate || '').localeCompare(a.sellDate || ''));
-
-        html += '<p class="section-label">In vendita (' + inVendita.length + ')</p>';
-        html += inVendita.length ? inVendita.map(itemCardHtml).join('') : '<p class="empty-hint">Nessun oggetto in vendita</p>';
-
-        html += '<p class="section-label">Venduti (' + venduti.length + ')</p>';
-        html += venduti.length ? venduti.map(itemCardHtml).join('') : '<p class="empty-hint">Nessun oggetto venduto ancora</p>';
-
-        container.innerHTML = html;
-
-        document.getElementById('splitPct').addEventListener('change', (e) => {
-            let v = parseInt(e.target.value, 10);
-            if (isNaN(v)) v = 50;
-            v = Math.max(0, Math.min(100, v));
-            data.settings.resellingReinvestPct = v;
-            saveData(); renderReselling(container);
-        });
-
-        container.querySelectorAll('.item-card').forEach(el => {
-            el.addEventListener('click', () => {
-                const item = itemById(el.getAttribute('data-id'));
-                if (!item) return;
-                if (item.status === 'in-vendita') openSellModal(item);
-                else openItemModal('edit', item, item.id);
-            });
-        });
-    }
-
-    function openItemModal(mode, vals, itemId) {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        const isEdit = mode === 'edit';
-        overlay.innerHTML =
-            '<div class="modal-box">' +
-            '<p class="modal-title">' + (isEdit ? 'Modifica oggetto' : 'Nuovo oggetto da rivendere') + '</p>' +
-            '<label class="field-label">Nome oggetto</label><input type="text" id="itName" value="' + esc(vals.name || '') + '" />' +
-            '<label class="field-label">Prezzo di acquisto (\u20ac)</label><input type="text" inputmode="decimal" id="itBuyPrice" value="' + (vals.buyPrice || '') + '" />' +
-            '<label class="field-label">Pagato con</label><select id="itBuyAcc">' + accOptions(vals.buyAccountId) + '</select>' +
-            '<label class="field-label">Data acquisto</label><input type="date" id="itBuyDate" value="' + (vals.date || vals.buyDate || todayStr()) + '" />' +
-            '<div class="modal-actions">' +
-            (isEdit ? '<button class="btn btn-danger" id="itDelete">Elimina</button>' : '') +
-            '<button class="btn btn-ghost" id="itCancel">Annulla</button>' +
-            '<button class="btn btn-primary" id="itSave">Salva</button>' +
-            '</div>' +
-            '</div>';
-
-        overlay.querySelector('#itCancel').onclick = () => overlay.remove();
-        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
-        if (isEdit) {
-            overlay.querySelector('#itDelete').onclick = () => {
-                if (!confirm('Eliminare questo oggetto? Verranno rimossi anche i movimenti collegati.')) return;
-                data.transactions = data.transactions.filter(t => t.itemId !== itemId);
-                data.items = data.items.filter(i => i.id !== itemId);
-                saveData(); overlay.remove(); renderContent();
-            };
-        }
-
-        overlay.querySelector('#itSave').onclick = () => {
-            const name = overlay.querySelector('#itName').value.trim();
-            const buyPrice = parseFloat((overlay.querySelector('#itBuyPrice').value || '0').replace(',', '.'));
-            const buyAccountId = overlay.querySelector('#itBuyAcc').value;
-            const buyDate = overlay.querySelector('#itBuyDate').value || todayStr();
-            if (!name || !buyPrice || buyPrice <= 0) return;
-
-            if (isEdit) {
-                const item = itemById(itemId);
-                item.name = name; item.buyPrice = buyPrice; item.buyAccountId = buyAccountId; item.buyDate = buyDate;
-                const buyTx = data.transactions.find(t => t.id === item.buyTransactionId);
-                if (buyTx) { buyTx.amount = buyPrice; buyTx.accountId = buyAccountId; buyTx.date = buyDate; buyTx.note = 'Acquisto: ' + name; }
-            } else {
-                const itemIdNew = uid('item');
-                const txId = uid('tx');
-                data.transactions.push({ id: txId, type: 'expense', amount: buyPrice, date: buyDate, note: 'Acquisto: ' + name, accountId: buyAccountId, categoryId: 'cat_reselling', itemId: itemIdNew, createdAt: new Date().toISOString() });
-                data.items.push({ id: itemIdNew, name, buyPrice, buyAccountId, buyDate, buyTransactionId: txId, status: 'in-vendita', sellPrice: null, sellDate: null, sellAccountId: null, sellTransactionId: null });
-            }
-            saveData(); overlay.remove(); renderContent();
-        };
-
-        document.body.appendChild(overlay);
-    }
-
-    function openSellModal(item) {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.innerHTML =
-            '<div class="modal-box">' +
-            '<p class="modal-title">Segna come venduto</p>' +
-            '<p class="modal-sub">' + esc(item.name) + ' \u2014 acquistato a ' + eur(item.buyPrice) + '</p>' +
-            '<label class="field-label">Prezzo di vendita (\u20ac)</label><input type="text" inputmode="decimal" id="sellPrice" />' +
-            '<label class="field-label">Ricevuto su</label><select id="sellAcc">' + accOptions(item.buyAccountId) + '</select>' +
-            '<label class="field-label">Data vendita</label><input type="date" id="sellDate" value="' + todayStr() + '" />' +
-            '<div class="modal-actions">' +
-            '<button class="btn btn-ghost" id="sellCancel">Annulla</button>' +
-            '<button class="btn btn-primary" id="sellSave">Conferma vendita</button>' +
-            '</div>' +
-            '</div>';
-        overlay.querySelector('#sellCancel').onclick = () => overlay.remove();
-        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-        overlay.querySelector('#sellSave').onclick = () => {
-            const sellPrice = parseFloat((overlay.querySelector('#sellPrice').value || '0').replace(',', '.'));
-            const sellAccountId = overlay.querySelector('#sellAcc').value;
-            const sellDate = overlay.querySelector('#sellDate').value || todayStr();
-            if (!sellPrice || sellPrice <= 0) return;
-            const txId = uid('tx');
-            data.transactions.push({ id: txId, type: 'income', amount: sellPrice, date: sellDate, note: 'Vendita: ' + item.name, accountId: sellAccountId, categoryId: 'cat_reselling', itemId: item.id, createdAt: new Date().toISOString() });
-            item.status = 'venduto'; item.sellPrice = sellPrice; item.sellDate = sellDate; item.sellAccountId = sellAccountId; item.sellTransactionId = txId;
-            saveData(); overlay.remove(); renderContent();
-        };
         document.body.appendChild(overlay);
     }
 
