@@ -110,13 +110,212 @@ async function readModule(name, fallback) {
     return snap.exists ? snap.data() : fallback;
 }
 
+// ---------- Attività scritte al bot ----------
+const WEEKDAYS_IT = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
+const MONTHS_IT = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+const WD_MAP = { domenica: 0, lunedi: 1, 'lunedì': 1, martedi: 2, 'martedì': 2, mercoledi: 3, 'mercoledì': 3, giovedi: 4, 'giovedì': 4, venerdi: 5, 'venerdì': 5, sabato: 6 };
+const DEFAULT_TODO_CATEGORIES = [
+    { id: 'cat1', name: 'Lavoro', color: '#6C8CF5' },
+    { id: 'cat2', name: 'Personale', color: '#9B7CF8' },
+    { id: 'cat3', name: 'Casa', color: '#3FCFA0' }
+];
+const HELP_TEXT = '🤖 <b>Scrivimi le attività</b>\nPer esempio:\n• <i>dentista domani alle 10</i>\n• <i>riunione venerdì dalle 15 alle 16 #lavoro</i>\n• <i>pagare la bolletta ogni mese</i>\n\nPuoi mandarne più di una, una per riga. Se capisco male, scrivi /annulla.';
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+// Stesso comportamento della barra "Scrivi un'attività" dell'app (today = data di oggi in formato AAAA-MM-GG, ora italiana)
+function parseQuickAdd(raw, today) {
+    let title = raw;
+    let recurrence = null, date = null, startTime = null, endTime = null;
+
+    function strip(regex) {
+        const m = title.match(regex);
+        if (m) title = title.replace(regex, ' ');
+        return m;
+    }
+
+    let m;
+    if (m = strip(/\bogni\s+(\d+)\s*giorn[oi]\b/i)) recurrence = { interval: parseInt(m[1], 10), unit: 'day' };
+    else if (strip(/\bogni\s+giorno\b/i)) recurrence = { interval: 1, unit: 'day' };
+    else if (m = strip(/\bogni\s+(\d+)\s*settiman[ae]\b/i)) recurrence = { interval: parseInt(m[1], 10), unit: 'week' };
+    else if (strip(/\bogni\s+settimana\b/i)) recurrence = { interval: 1, unit: 'week' };
+    else if (m = strip(/\bogni\s+(\d+)\s*mes[ei]\b/i)) recurrence = { interval: parseInt(m[1], 10), unit: 'month' };
+    else if (strip(/\bogni\s+mese\b/i)) recurrence = { interval: 1, unit: 'month' };
+
+    if (strip(/\bdopodomani\b/i)) date = addDays(today, 2);
+    else if (strip(/\bdomani\b/i)) date = addDays(today, 1);
+    else if (strip(/\b(?:oggi|stasera|stamattina|questa\s+sera|questa\s+mattina)\b/i)) date = today;
+    else if (m = strip(/\btra\s+(\d+)\s*settiman[ae]\b/i)) date = addDays(today, parseInt(m[1], 10) * 7);
+    else if (m = strip(/\btra\s+(\d+)\s*giorn[oi]\b/i)) date = addDays(today, parseInt(m[1], 10));
+    else if (m = strip(/(?:^|\s)(?:prossimo\s+)?(domenica|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato)(?![a-zàèéìòù])/i)) {
+        const dow = WD_MAP[m[1].toLowerCase()];
+        let d = addDays(today, 1);
+        while (weekdayOf(d) !== dow) d = addDays(d, 1);
+        date = d;
+    } else if (m = strip(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/)) {
+        const dd = parseInt(m[1], 10), mo = parseInt(m[2], 10);
+        if (mo >= 1 && mo <= 12 && dd >= 1 && dd <= 31) {
+            const explicit = !!m[3];
+            let y = explicit ? (m[3].length === 2 ? 2000 + parseInt(m[3], 10) : parseInt(m[3], 10)) : parseInt(today.slice(0, 4), 10);
+            let cand = y + '-' + pad2(mo) + '-' + pad2(dd);
+            if (!explicit && cand < today) cand = (y + 1) + '-' + pad2(mo) + '-' + pad2(dd);
+            date = cand;
+        }
+    }
+
+    const okTime = (h, mi) => h <= 23 && mi <= 59;
+    if (m = strip(/\bdalle\s+(\d{1,2})(?:[:.](\d{2}))?\s+alle\s+(\d{1,2})(?:[:.](\d{2}))?\b/i)) {
+        const h1 = parseInt(m[1], 10), m1 = parseInt(m[2] || '0', 10), h2 = parseInt(m[3], 10), m2 = parseInt(m[4] || '0', 10);
+        if (okTime(h1, m1) && okTime(h2, m2)) { startTime = pad2(h1) + ':' + pad2(m1); endTime = pad2(h2) + ':' + pad2(m2); }
+    } else if (m = strip(/\balle\s+(\d{1,2})(?:[:.](\d{2}))?\b/i)) {
+        const h1 = parseInt(m[1], 10), m1 = parseInt(m[2] || '0', 10);
+        if (okTime(h1, m1)) startTime = pad2(h1) + ':' + pad2(m1);
+    }
+
+    title = title.replace(/\s{2,}/g, ' ').trim();
+    title = title.replace(/^(di|il|la|l')\s+/i, '');
+    title = title.replace(/^[,;]\s*/, '').replace(/[,;]\s*$/, '');
+    title = title.trim();
+    if (title.length) title = title.charAt(0).toUpperCase() + title.slice(1);
+
+    return { title: title || raw.trim(), date, startTime, endTime, recurrence };
+}
+
+function extractCategory(line, categories) {
+    const m = line.match(/(?:^|\s)#([\wàèéìòù]+)/i);
+    if (!m) return { text: line, cat: null, unknown: null };
+    const tag = m[1].toLowerCase();
+    const cat = categories.find(c => c.name.toLowerCase() === tag) || categories.find(c => c.name.toLowerCase().startsWith(tag)) || null;
+    return { text: line.replace(m[0], ' ').trim(), cat, unknown: cat ? null : m[1] };
+}
+
+function humanDate(dateStr, today) {
+    if (dateStr === today) return 'oggi';
+    if (dateStr === addDays(today, 1)) return 'domani';
+    const [, mo, d] = dateStr.split('-');
+    return WEEKDAYS_IT[weekdayOf(dateStr)] + ' ' + parseInt(d, 10) + ' ' + MONTHS_IT[parseInt(mo, 10) - 1];
+}
+
+function recurrenceText(r) {
+    const names = { day: ['giorno', 'giorni'], week: ['settimana', 'settimane'], month: ['mese', 'mesi'] }[r.unit];
+    return r.interval > 1 ? 'ogni ' + r.interval + ' ' + names[1] : 'ogni ' + names[0];
+}
+
+function taskSummary(t, today, catName) {
+    const parts = ['📅 ' + (t.date ? humanDate(t.date, today) : 'senza data')];
+    if (t.startTime) parts.push('🕙 ' + t.startTime + (t.endTime ? '–' + t.endTime : ''));
+    if (t.recurrence) parts.push('🔁 ' + recurrenceText(t.recurrence));
+    if (catName) parts.push('🏷 ' + esc(catName));
+    return '✅ <b>' + esc(t.title) + '</b>\n' + parts.join(' · ');
+}
+
+async function tgGet(method, params) {
+    const res = await fetch('https://api.telegram.org/bot' + TOKEN + '/' + method + '?' + new URLSearchParams(params));
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) throw new Error('Telegram ' + method + ': ' + (json.description || res.status));
+    return json.result;
+}
+
+function todoRef() { return db.collection('users').doc(UID).collection('modules').doc('todo'); }
+
+async function addTasks(newTasks) {
+    await db.runTransaction(async tx => {
+        const snap = await tx.get(todoRef());
+        const d = snap.exists ? snap.data() : { categories: DEFAULT_TODO_CATEGORIES, tasks: [] };
+        d.tasks = d.tasks || [];
+        newTasks.forEach(t => d.tasks.push(t));
+        tx.set(todoRef(), d);
+    });
+}
+
+async function undoLast(state) {
+    const ids = state.lastAdded || [];
+    if (!ids.length) { await send('Non c\'è niente da annullare.'); return; }
+    let removed = [];
+    await db.runTransaction(async tx => {
+        const snap = await tx.get(todoRef());
+        if (!snap.exists) { removed = []; return; }
+        const d = snap.data();
+        const before = d.tasks || [];
+        removed = before.filter(t => ids.includes(t.id));
+        d.tasks = before.filter(t => !ids.includes(t.id));
+        tx.set(todoRef(), d);
+    });
+    state.lastAdded = [];
+    await send(removed.length
+        ? '↩️ <b>Eliminate</b>\n' + removed.map(t => '• ' + esc(t.title)).join('\n')
+        : 'Quelle attività non ci sono più (le hai già tolte dall\'app).');
+}
+
+async function handleMessage(text, now, state) {
+    const cmd = text.split(/\s+/)[0].toLowerCase().replace(/@.*$/, '');
+    if (cmd === '/start' || cmd === '/aiuto' || cmd === '/help') { await send(HELP_TEXT); return; }
+    if (cmd === '/annulla') { await undoLast(state); return; }
+    if (cmd.startsWith('/')) { await send('Comando non riconosciuto. Scrivimi direttamente l\'attività, per esempio: <i>dentista domani alle 10</i>'); return; }
+
+    const todo = await readModule('todo', { categories: DEFAULT_TODO_CATEGORIES, tasks: [] });
+    const categories = todo.categories || [];
+    const created = [], notes = [];
+    const stamp = Date.now().toString(36);
+
+    text.split(/\n+/).map(l => l.trim()).filter(Boolean).forEach((line, i) => {
+        const ex = extractCategory(line, categories);
+        const p = parseQuickAdd(ex.text || line, now.date);
+        if (ex.unknown) notes.push('⚠️ Categoria #' + esc(ex.unknown) + ' non trovata: salvata senza categoria.');
+        created.push({
+            id: 't_' + stamp + i + Math.random().toString(36).slice(2, 6),
+            title: p.title, date: p.date, startTime: p.startTime, endTime: p.endTime,
+            categoryId: ex.cat ? ex.cat.id : null, recurrence: p.recurrence, completed: false, completedAt: null,
+            _catName: ex.cat ? ex.cat.name : null
+        });
+    });
+    if (!created.length) return;
+
+    const summaries = created.map(t => taskSummary(t, now.date, t._catName));
+    created.forEach(t => { delete t._catName; });
+    await addTasks(created);
+    state.lastAdded = created.map(t => t.id);
+    await send((created.length > 1 ? '<b>Aggiunte ' + created.length + ' attività</b>\n\n' : '') + summaries.join('\n\n') + (notes.length ? '\n\n' + notes.join('\n') : ''));
+}
+
+async function processIncoming(now, state, stateRef) {
+    const firstRun = typeof state.lastUpdateId !== 'number';
+    const params = { timeout: '0', allowed_updates: JSON.stringify(['message']) };
+    if (!firstRun) params.offset = String(state.lastUpdateId + 1);
+
+    let updates;
+    try { updates = await tgGet('getUpdates', params); }
+    catch (err) { console.warn('Messaggi Telegram non letti:', err.message); return; }
+
+    if (firstRun) {
+        // Alla prima esecuzione ignoro i vecchi messaggi in coda, così non diventano attività per sbaglio
+        state.lastUpdateId = updates.length ? updates[updates.length - 1].update_id : 0;
+        await stateRef.set(state);
+        await send(HELP_TEXT);
+        return;
+    }
+
+    for (const u of updates) {
+        state.lastUpdateId = u.update_id;
+        const msg = u.message;
+        if (msg && msg.text && String(msg.chat.id) === String(CHAT_ID)) {
+            try { await handleMessage(msg.text.trim(), now, state); }
+            catch (err) {
+                console.error('Errore messaggio Telegram:', err.message);
+                try { await send('⚠️ Non sono riuscito a salvare l\'attività. Riprova tra poco.'); } catch (e) { /* ignoro */ }
+            }
+        }
+        await stateRef.set(state); // salvo subito l'avanzamento, così un messaggio non viene mai elaborato due volte
+    }
+}
+
 // ---------- Main ----------
 async function main() {
     const now = romeNow();
     const stateRef = db.collection('users').doc(UID).collection('modules').doc('notifiche');
     const stateSnap = await stateRef.get();
     const state = Object.assign(
-        { lastMorning: '', lastDiary: '', lastWeekly: '', lastBackup: '', lastStale: '', staleAlerted: [], budget: {}, reminded: [], doneByDay: {} },
+        { lastMorning: '', lastDiary: '', lastWeekly: '', lastBackup: '', lastStale: '', staleAlerted: [], lastAdded: [], budget: {}, reminded: [], doneByDay: {} },
         stateSnap.exists ? stateSnap.data() : {}
     );
     let failed = false;
@@ -130,6 +329,9 @@ async function main() {
     if (process.env.TEST_MESSAGE === 'true') {
         await attempt('test', () => send('✅ Il bot funziona. Le notifiche della tua app sono attive.'));
     }
+
+    // 0) Attività scritte al bot (prima di leggere le attività, così quelle appena create contano subito)
+    await attempt('messaggi telegram', () => processIncoming(now, state, stateRef));
 
     const todo = await readModule('todo', { tasks: [] });
     const tasks = todo.tasks || [];
