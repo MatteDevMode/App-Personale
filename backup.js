@@ -1,6 +1,6 @@
 (function () {
     const FORMAT = 'app-personale';
-    const MODULES = ['todo', 'diario', 'finanze', 'trading', 'matty', 'spazio', 'reselling'];
+    const MODULES = ['todo', 'diario', 'finanze', 'trading', 'matty', 'spazio', 'reselling', 'xp'];
     const REQUIRED = {
         todo: ['tasks', 'categories'],
         diario: ['entries'],
@@ -8,7 +8,8 @@
         trading: ['strategies', 'trades'],
         matty: ['customPhrases'],
         spazio: ['sessions'],
-        reselling: ['items']
+        reselling: ['items'],
+        xp: ['events', 'routines']
     };
 
     function pad2(n) { return String(n).padStart(2, '0'); }
@@ -69,6 +70,7 @@
         if (valid.trading) parts.push(valid.trading.trades.length + ' trade');
         if (valid.spazio) parts.push(valid.spazio.sessions.length + ' momenti dello Spazio Privato');
         if (valid.reselling) parts.push(valid.reselling.items.length + ' oggetti di reselling');
+        if (valid.xp) parts.push('i tuoi progressi e le routine');
         return parts.join(', ');
     }
 

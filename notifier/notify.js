@@ -12,6 +12,8 @@ const BUDGET_WARN_PCT = 80;
 const BUDGET_OVER_PCT = 100;
 const TASK_REMINDER_MIN = 30;         // minuti prima dell'orario di inizio
 const STALE_DAYS = 30;                // oggetti in vendita da questi giorni: avviso
+const ROUTINE_FROM = 21 * 60 + 30;    // 21:30: avviso se mancano routine
+const ROUTINE_UNTIL = 23 * 60 + 30;
 const START_GRACE_MIN = 10;           // l'avviso "ora" parte anche con fino a 10 min di ritardo
 const APP_URL = 'https://mattedevmode.github.io/App-Personale/';
 const MOODS = { ottimo: '😄 Ottimo', bene: '🙂 Bene', neutro: '😐 Neutro', giu: '😞 Giù', arrabbiato: '😠 Arrabbiato' };
@@ -51,6 +53,12 @@ function toMin(hhmm) {
 
 function daysBetween(a, b) {
     return Math.round((new Date(b + 'T12:00:00Z') - new Date(a + 'T12:00:00Z')) / 86400000);
+}
+
+function romeDateOf(iso) {
+    const p = {};
+    new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(iso)).forEach(x => { p[x.type] = x.value; });
+    return p.year + '-' + p.month + '-' + p.day;
 }
 
 function addDays(dateStr, n) {
@@ -315,7 +323,7 @@ async function main() {
     const stateRef = db.collection('users').doc(UID).collection('modules').doc('notifiche');
     const stateSnap = await stateRef.get();
     const state = Object.assign(
-        { lastMorning: '', lastDiary: '', lastWeekly: '', lastBackup: '', lastStale: '', staleAlerted: [], lastAdded: [], budget: {}, reminded: [], doneByDay: {} },
+        { lastMorning: '', lastDiary: '', lastWeekly: '', lastBackup: '', lastStale: '', lastRoutine: '', staleAlerted: [], lastAdded: [], budget: {}, reminded: [], doneByDay: {} },
         stateSnap.exists ? stateSnap.data() : {}
     );
     let failed = false;
@@ -420,6 +428,31 @@ async function main() {
         }
     }
     state.budget = newBudgetState; // tiene solo il mese corrente
+
+    // 3b) Progressi: nuovo livello e routine mancanti
+    const xp = await readModule('xp', { events: [], history: {}, routines: [], checks: {}, summary: {} });
+    const level = (xp.summary && xp.summary.level) || 1;
+    if (typeof state.lastLevelNotified !== 'number') state.lastLevelNotified = level; // la prima volta non avviso
+    else if (level > state.lastLevelNotified) {
+        await attempt('livello', async () => {
+            await send('🎉 <b>Livello ' + level + '!</b>\n' + esc(xp.summary.title || '') + '\nTotale: ' + (xp.summary.total || 0) + ' XP');
+            state.lastLevelNotified = level;
+        });
+    }
+
+    if (now.minutes >= ROUTINE_FROM && now.minutes < ROUTINE_UNTIL && state.lastRoutine !== now.date) {
+        const dow = weekdayOf(now.date);
+        const diarioR = await readModule('diario', { entries: [] });
+        const wrote = (diarioR.entries || []).some(e => e.date === now.date || (e.createdAt && romeDateOf(e.createdAt) === now.date));
+        const missing = (xp.routines || []).filter(r => !r.archived && (!r.since || r.since <= now.date) && (!r.days || !r.days.length || r.days.includes(dow)))
+            .filter(r => (r.auto === 'diario' ? (wrote ? (r.target || 1) : 0) : (((xp.checks || {})[now.date] || {})[r.id] || 0)) < (r.target || 1));
+        await attempt('routine', async () => {
+            if (missing.length) {
+                await send('📋 <b>Ti ' + (missing.length === 1 ? 'manca 1 routine' : 'mancano ' + missing.length + ' routine') + '</b>\n' + missing.map(r => '• ' + esc(r.icon ? r.icon + ' ' : '') + esc(r.name)).join('\n'));
+            }
+            state.lastRoutine = now.date;
+        });
+    }
 
     // 4) Promemoria attività: 30 minuti prima e all'ora di inizio
     const remindedToday = (state.reminded || []).filter(k => k.includes('|' + now.date));
@@ -546,7 +579,7 @@ async function main() {
                 app: 'app-personale',
                 version: 1,
                 exportedAt: new Date().toISOString(),
-                modules: { todo, diario: diarioData, finanze: fin, trading: tradingData, reselling: resellingData }
+                modules: { todo, diario: diarioData, finanze: fin, trading: tradingData, reselling: resellingData, xp }
             };
             await sendDocument('backup-' + now.date + '.json', JSON.stringify(backup, null, 2), '💾 Backup settimanale (' + ddmm(now.date) + ')');
             if (!weeklyTest) state.lastBackup = now.date;

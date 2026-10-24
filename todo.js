@@ -89,7 +89,7 @@
     else if (strip(/\boggi\b/i)) date = addDaysToToday(0);
     else if (m = strip(/\btra\s+(\d+)\s*settiman[ae]\b/i)) date = addDaysToToday(parseInt(m[1], 10) * 7);
     else if (m = strip(/\btra\s+(\d+)\s*giorn[oi]\b/i)) date = addDaysToToday(parseInt(m[1], 10));
-    else if (m = strip(/\b(?:prossimo\s+)?(domenica|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato)\b/i)) {
+    else if (m = strip(/(?:^|\s)(?:prossimo\s+)?(domenica|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato)(?![a-zàèéìòù])/i)) {
       const key = m[1].toLowerCase();
       const dow = WD[key];
       if (dow !== undefined) date = nextWeekday(dow);
@@ -244,6 +244,7 @@
     if (t.startTime) meta.push('<span class="task-time">' + t.startTime + (t.endTime ? '\u2013' + t.endTime : '') + '</span>');
     if (cat) meta.push('<span>' + esc(cat.name) + '</span>');
     if (t.recurrence) meta.push('<span>\u21bb ogni ' + (t.recurrence.interval > 1 ? t.recurrence.interval + ' ' : '') + (t.recurrence.unit === 'day' ? 'giorni' : t.recurrence.unit === 'week' ? 'settimane' : 'mesi') + '</span>');
+    if (t.weight === 'l') meta.push('<span>\u2b50 grande</span>');
     return '<div class="task-item' + (overdue ? ' overdue' : '') + (t.completed ? ' completed' : '') + '" style="--cat-color:' + color + ';" data-id="' + t.id + '">' +
       '<button class="task-check" data-check="' + t.id + '">' + (t.completed ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>' : '') + '</button>' +
       '<div class="task-body"><div class="task-title">' + esc(t.title) + '</div>' +
@@ -366,6 +367,7 @@
     const isPreview = mode === 'preview';
     const title = isPreview ? 'Conferma attività' : (isEdit ? 'Modifica attività' : 'Nuova attività');
     const rec = vals.recurrence || null;
+    const weight = vals.weight || 'm';
 
     overlay.innerHTML =
       '<div class="modal-box">' +
@@ -381,6 +383,12 @@
       '</div>' +
       '<label class="field-label">Categoria</label>' +
       '<select id="fCat">' + catOptionsHtml(vals.categoryId) + '</select>' +
+      '<label class="field-label">Peso (punti esperienza)</label>' +
+      '<select id="fWeight">' +
+      '<option value="s"' + (weight === 's' ? ' selected' : '') + '>Piccola \u00b7 5 XP</option>' +
+      '<option value="m"' + (weight === 'm' ? ' selected' : '') + '>Media \u00b7 10 XP</option>' +
+      '<option value="l"' + (weight === 'l' ? ' selected' : '') + '>Grande \u00b7 25 XP</option>' +
+      '</select>' +
       '<label class="field-label">Ricorrenza</label>' +
       '<select id="fRecUnit">' +
       '<option value="">Nessuna</option>' +
@@ -426,15 +434,16 @@
       const startVal = overlay.querySelector('#fStart').value || null;
       const endVal = overlay.querySelector('#fEnd').value || null;
       const catVal = overlay.querySelector('#fCat').value || null;
+      const weightVal = overlay.querySelector('#fWeight').value || 'm';
       const recUnit = recUnitSel.value;
       const recN = parseInt(recNInput.value, 10);
       const recurrence = recUnit && recN > 0 ? { interval: recN, unit: recUnit } : null;
 
       if (isEdit) {
         const task = data.tasks.find(x => x.id === taskId);
-        Object.assign(task, { title: t, date: dateVal, startTime: startVal, endTime: endVal, categoryId: catVal, recurrence });
+        Object.assign(task, { title: t, date: dateVal, startTime: startVal, endTime: endVal, categoryId: catVal, weight: weightVal, recurrence });
       } else {
-        data.tasks.push({ id: uid(), title: t, date: dateVal, startTime: startVal, endTime: endVal, categoryId: catVal, recurrence, completed: false, completedAt: null });
+        data.tasks.push({ id: uid(), title: t, date: dateVal, startTime: startVal, endTime: endVal, categoryId: catVal, weight: weightVal, recurrence, completed: false, completedAt: null });
       }
       saveData();
       overlay.remove();

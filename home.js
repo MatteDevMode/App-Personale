@@ -199,9 +199,10 @@
 
         page.innerHTML =
             '<div class="page-header"><p class="eyebrow" style="text-transform:capitalize;">' + dateLabel + '</p><h1>' + greet + '</h1></div>' +
-            '<div id="mattyHome"></div><div class="home-grid">' + todayCard() + financeCard() + diaryCard() + tradingCard() + resellingCard() + '</div>';
+            '<div id="mattyHome"></div><div id="xpHome"></div><div class="home-grid">' + todayCard() + financeCard() + diaryCard() + tradingCard() + resellingCard() + '</div>';
 
         if (window.Matty) window.Matty.mountHome(document.getElementById('mattyHome'));
+        if (window.XP) window.XP.mountHome(document.getElementById('xpHome'));
 
         page.querySelectorAll('[data-go]').forEach(el => {
             el.addEventListener('click', () => switchPage(el.getAttribute('data-go')));

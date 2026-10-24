@@ -562,7 +562,7 @@
         currentPhrase = null;
     }
 
-    window.Matty = { mountHome };
+    window.Matty = { mountHome, penguin };
 
     window.addEventListener('app:authReady', e => startForUser(e.detail.uid));
     window.addEventListener('app:authLoggedOut', stop);
