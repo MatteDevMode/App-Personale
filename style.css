@@ -401,7 +401,7 @@ h1 {
 
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
 }
 
@@ -414,6 +414,7 @@ h1 {
 }
 
 .cal-day {
+  min-width: 0;
   min-height: 76px;
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -424,6 +425,7 @@ h1 {
   gap: 3px;
   cursor: pointer;
   position: relative;
+  overflow: hidden;
 }
 
 .cal-day.other-month {
@@ -453,6 +455,8 @@ h1 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .cal-more {
