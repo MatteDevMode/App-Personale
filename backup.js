@@ -1,9 +1,10 @@
 (function () {
     const FORMAT = 'app-personale';
-    const MODULES = ['todo', 'diario', 'finanze', 'trading', 'matty', 'spazio', 'reselling', 'xp'];
+    const MODULES = ['todo', 'diario', 'notes', 'finanze', 'trading', 'matty', 'spazio', 'reselling', 'xp'];
     const REQUIRED = {
         todo: ['tasks', 'categories'],
         diario: ['entries'],
+        notes: ['notes'],
         finanze: ['accounts', 'categories', 'transactions'],
         trading: ['strategies', 'trades'],
         matty: ['customPhrases'],
