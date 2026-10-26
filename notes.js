@@ -129,9 +129,16 @@
       'Nuova nota' +
       '</button>' +
       '</div>' +
-      '<div class="notes-layout" id="notesLayout"></div>';
+      '<div class="notes-layout" id="notesLayout"></div>' +
+      '<div class="notes-bottom-bar" id="notesBottomBar">' +
+      '<button class="notes-fab" id="notesFab">' +
+      '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>' +
+      'Nuova nota' +
+      '</button>' +
+      '</div>';
 
     document.getElementById('notesNew').onclick = createNote;
+    document.getElementById('notesFab').onclick = createNote;
   }
 
   function renderAll() {
@@ -144,13 +151,18 @@
     const showEditor = !!note && (state.mobileShowEditor || window.matchMedia('(min-width: 861px)').matches);
 
     layout.classList.toggle('show-editor', showEditor);
+    const bottomBar = document.getElementById('notesBottomBar');
+    if (bottomBar) bottomBar.classList.toggle('hidden', showEditor);
 
     let listHtml = '<div class="notes-sidebar">' +
       '<div class="notes-search"><input type="search" id="notesSearch" placeholder="Cerca nelle note..." value="' + esc(state.searchQuery) + '" /></div>' +
       '<div class="notes-list">';
 
     if (!notes.length) {
-      listHtml += '<p class="empty-hint">' + (state.searchQuery ? 'Nessuna nota trovata' : 'Nessuna nota ancora. Scrivi la prima idea.') + '</p>';
+      listHtml += '<div class="notes-list-empty">' +
+        '<p class="empty-hint">' + (state.searchQuery ? 'Nessuna nota trovata' : 'Nessuna nota ancora.') + '</p>' +
+        (!state.searchQuery ? '<button type="button" class="btn btn-primary" id="notesListNew">Scrivi la prima nota</button>' : '') +
+        '</div>';
     } else {
       notes.forEach(n => {
         const active = n.id === state.selectedId ? ' active' : '';
@@ -212,6 +224,8 @@
 
     const emptyNew = document.getElementById('notesEmptyNew');
     if (emptyNew) emptyNew.onclick = createNote;
+    const listNew = document.getElementById('notesListNew');
+    if (listNew) listNew.onclick = createNote;
 
     const back = document.getElementById('notesBack');
     if (back) back.onclick = () => { state.mobileShowEditor = false; renderAll(); };
