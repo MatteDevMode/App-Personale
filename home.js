@@ -12,17 +12,18 @@
     const WEEKDAYS = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
     const MOOD_EMOJI = { ottimo: '😄', bene: '🙂', neutro: '😐', giu: '😞', arrabbiato: '😠' };
 
-    let todo, diario, fin, trading, reselling;
+    let todo, diario, notes, fin, trading, reselling;
     let unsubs = [];
     let loaded = {};
 
     function resetData() {
         todo = { tasks: [], categories: [] };
         diario = { entries: [] };
+        notes = { notes: [] };
         fin = { accounts: [], categories: [], transactions: [] };
         trading = { strategies: [], trades: [] };
         reselling = { items: [] };
-        loaded = { todo: false, diario: false, finanze: false, trading: false, reselling: false };
+        loaded = { todo: false, diario: false, notes: false, finanze: false, trading: false, reselling: false };
     }
     resetData();
 
@@ -154,6 +155,22 @@
         return html + '</div>';
     }
 
+    function notesCard() {
+        const list = (notes.notes || []).slice().sort((a, b) => (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || ''));
+        const head = '<div class="home-card" data-go="notes"><div class="home-head"><p class="home-title">Note</p><span class="home-link">' + (list.length ? 'Apri' : 'Scrivi') + ' →</span></div>';
+        if (!list.length) {
+            return head + '<p class="home-big" style="font-size:20px;">Nessuna nota</p><p class="home-sub">Scarica qui le idee al volo</p></div>';
+        }
+        const last = list[0];
+        const title = (last.title || '').trim() || 'Senza titolo';
+        const preview = (last.text || '').replace(/\s+/g, ' ').trim();
+        return head +
+            '<p class="home-big" style="font-size:18px;">' + esc(title) + '</p>' +
+            '<p class="home-sub">' + list.length + (list.length === 1 ? ' nota' : ' note') +
+            (preview ? ' · ' + esc(preview.length > 70 ? preview.slice(0, 70) + '…' : preview) : '') +
+            '</p></div>';
+    }
+
     function resellingCard() {
         const ym = todayStr().slice(0, 7);
         const items = reselling.items || [];
@@ -188,7 +205,7 @@
     function render() {
         const page = document.getElementById('page-home');
         if (!page) return;
-        if (!loaded.todo || !loaded.diario || !loaded.finanze || !loaded.trading || !loaded.reselling) {
+        if (!loaded.todo || !loaded.diario || !loaded.notes || !loaded.finanze || !loaded.trading || !loaded.reselling) {
             page.innerHTML = '<p class="empty-hint">Caricamento...</p>';
             return;
         }
@@ -199,7 +216,7 @@
 
         page.innerHTML =
             '<div class="page-header"><p class="eyebrow" style="text-transform:capitalize;">' + dateLabel + '</p><h1>' + greet + '</h1></div>' +
-            '<div id="mattyHome"></div><div id="xpHome"></div><div class="home-grid">' + todayCard() + financeCard() + diaryCard() + tradingCard() + resellingCard() + '</div>';
+            '<div id="mattyHome"></div><div id="xpHome"></div><div class="home-grid">' + todayCard() + financeCard() + diaryCard() + notesCard() + tradingCard() + resellingCard() + '</div>';
 
         if (window.Matty) window.Matty.mountHome(document.getElementById('mattyHome'));
         if (window.XP) window.XP.mountHome(document.getElementById('xpHome'));
@@ -229,6 +246,7 @@
         const base = window.db.collection('users').doc(uid).collection('modules');
         listen(base.doc('todo'), 'todo', d => { todo = Object.assign({ tasks: [], categories: [] }, d); });
         listen(base.doc('diario'), 'diario', d => { diario = Object.assign({ entries: [] }, d); });
+        listen(base.doc('notes'), 'notes', d => { notes = Object.assign({ notes: [] }, d); });
         listen(base.doc('finanze'), 'finanze', d => { fin = Object.assign({ accounts: [], categories: [], transactions: [] }, d); });
         listen(base.doc('trading'), 'trading', d => { trading = Object.assign({ strategies: [], trades: [] }, d); });
         listen(base.doc('reselling'), 'reselling', d => { reselling = Object.assign({ items: [] }, d); });

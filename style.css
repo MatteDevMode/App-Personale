@@ -1732,6 +1732,7 @@ h1 {
   min-height: 100vh;
 }
 
+
 /* ---------- Note module ---------- */
 .notes-new-btn {
   flex: 0 0 auto;
@@ -1932,14 +1933,66 @@ h1 {
   margin: 0 0 6px;
 }
 
-.notes-empty .btn {
+.notes-empty .btn,
+.notes-list-empty .btn {
   flex: 0 0 auto;
   width: auto;
   margin-top: 12px;
   padding: 10px 18px;
 }
 
+.notes-list-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+.notes-bottom-bar {
+  display: none;
+}
+
+.notes-fab {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 13px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--font-body);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 @media (max-width: 860px) {
+  #page-notes {
+    padding-bottom: 96px;
+  }
+
+  .notes-new-btn {
+    display: none;
+  }
+
+  .notes-bottom-bar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 0.75rem 1.25rem;
+    background: linear-gradient(to top, var(--bg-page) 60%, transparent);
+    z-index: 20;
+  }
+
+  .notes-bottom-bar.hidden {
+    display: none;
+  }
+
   .notes-layout {
     grid-template-columns: 1fr;
     min-height: calc(100vh - 180px);
