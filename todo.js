@@ -1,14 +1,16 @@
 (function () {
   const PALETTE = ['#6C8CF5', '#9B7CF8', '#3FCFA0', '#5AB7E8', '#C77DF0', '#4FD1C5'];
 
-  function pad2(n) { return String(n).padStart(2, '0'); }
-  function formatDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
-  function todayStr() { return formatDate(new Date()); }
-  function parseDateStr(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
-  function addDaysToDate(dateStr, n) { const d = parseDateStr(dateStr); d.setDate(d.getDate() + n); return formatDate(d); }
-  function addDaysToToday(n) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n); return formatDate(d); }
-  function nextWeekday(dow) { let d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 1); while (d.getDay() !== dow) d.setDate(d.getDate() + 1); return formatDate(d); }
-  function uid() { return 't_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  // Usa le funzioni condivise da Utils
+  const { esc, uid, pad2, formatDate, todayStr, parseDateStr, addDaysToDate, addDaysToToday, showToast } = window.Utils;
+
+  function nextWeekday(dow) {
+    let d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 1);
+    while (d.getDay() !== dow) d.setDate(d.getDate() + 1);
+    return formatDate(d);
+  }
 
   const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
   const WEEKDAYS_LONG = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
@@ -38,7 +40,12 @@
 
   function saveData() {
     if (!docRef) return;
-    docRef.set(data).catch(err => console.error('Errore salvataggio Cose da fare:', err));
+    docRef.set(data)
+      .then(() => showToast('Salvato', 'success'))
+      .catch(err => {
+        console.error('Errore salvataggio Cose da fare:', err);
+        showToast('Errore nel salvataggio', 'error');
+      });
   }
   function purgeOldCompleted() {
     const t = todayStr();
@@ -116,8 +123,6 @@
 
   // ---------- Rendering ----------
   const els = {};
-
-  function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
   function renderShell() {
     const page = document.getElementById('page-todo');
