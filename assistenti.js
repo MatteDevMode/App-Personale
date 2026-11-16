@@ -10,7 +10,8 @@
     };
 
     const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-    const GROQ_MODEL = 'llama-3.3-70b-versatile';
+    // llama-3.3-70b-versatile è solo Enterprise dal 16/08/2026
+    const GROQ_MODEL = 'openai/gpt-oss-120b';
     const RATE_MS = 2000;
     const LS_KEY = 'app-personale-groq-key';
 
