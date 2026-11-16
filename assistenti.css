@@ -732,7 +732,8 @@
     position: fixed;
     top: 0;
     right: 0;
-    width: min(380px, 100vw);
+    width: min(520px, 42vw);
+    min-width: 360px;
     height: 100vh;
     height: 100dvh;
     background: var(--bg-sidebar);
@@ -747,6 +748,21 @@
 
 .as-chat.open {
     transform: translateX(0);
+}
+
+@media (max-width: 900px) {
+    .as-chat {
+        width: min(440px, 100vw);
+        min-width: 0;
+    }
+}
+
+@media (max-width: 640px) {
+    .as-chat {
+        width: 100vw;
+        min-width: 0;
+        border-left: none;
+    }
 }
 
 .as-chat-header {
@@ -999,12 +1015,6 @@
     filter: brightness(1.08);
 }
 
-@media (max-width: 480px) {
-    .as-chat {
-        width: 100vw;
-    }
-}
-
 /* ========== Scheda & log allenamento ========== */
 .as-scheda-card,
 .as-log-card {
@@ -1013,6 +1023,7 @@
     border-radius: 14px;
     background: rgba(63, 207, 160, 0.08);
     border: 1px solid rgba(63, 207, 160, 0.28);
+    overflow: hidden;
 }
 
 .as-scheda-head {
@@ -1107,16 +1118,24 @@
 }
 
 .as-log-tipo {
-    width: 140px;
+    width: min(160px, 100%);
     margin-left: 6px;
+    box-sizing: border-box;
 }
 
 .as-log-ex-head,
 .as-log-ex {
     display: grid;
-    grid-template-columns: 1.6fr 0.6fr 0.6fr 0.6fr;
+    grid-template-columns: minmax(0, 1.8fr) minmax(52px, 0.55fr) minmax(52px, 0.55fr) minmax(52px, 0.55fr);
     gap: 6px;
     margin-bottom: 6px;
+    align-items: center;
+}
+
+.as-log-ex input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .as-log-ex-head {
@@ -1124,6 +1143,49 @@
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 0.03em;
+}
+
+.as-scheda-actions {
+    flex-wrap: wrap;
+}
+
+.as-scheda-actions button {
+    flex: 1 1 auto;
+    min-width: 110px;
+}
+
+@media (max-width: 640px) {
+    .as-log-ex-head {
+        display: none;
+    }
+
+    .as-log-ex {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        padding: 8px;
+        margin-bottom: 8px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--bg-page);
+    }
+
+    .as-log-ex .as-log-nome {
+        grid-column: 1 / -1;
+    }
+
+    .as-log-tipo {
+        display: block;
+        width: 100%;
+        margin: 6px 0 0;
+    }
+
+    .as-log-meta {
+        flex-direction: column;
+    }
+
+    .as-log-meta label {
+        width: 100%;
+    }
 }
 
 .as-log-summary {
