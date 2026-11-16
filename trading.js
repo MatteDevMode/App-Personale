@@ -1,10 +1,7 @@
 (function () {
-    function pad2(n) { return String(n).padStart(2, '0'); }
-    function formatDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
-    function todayStr() { return formatDate(new Date()); }
-    function parseDateStr(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
-    function uid(p) { return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
-    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    // Usa le funzioni condivise da Utils
+    const { esc, uid, pad2, formatDate, todayStr, parseDateStr, showToast } = window.Utils;
+
     function eur(n) { return (n || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' }); }
     function num(v) { const n = parseFloat(String(v || '').replace(',', '.')); return isNaN(n) ? NaN : n; }
     function sum(list) { return list.reduce((s, t) => s + (t.result || 0), 0); }
@@ -52,7 +49,12 @@
 
     function saveData() {
         if (!docRef) return;
-        docRef.set(data).catch(err => console.error('Errore salvataggio Trading:', err));
+        docRef.set(data)
+            .then(() => showToast('Salvato', 'success'))
+            .catch(err => {
+                console.error('Errore salvataggio Trading:', err);
+                showToast('Errore nel salvataggio', 'error');
+            });
     }
     function photosRef() { return docRef.collection('photos'); }
     function strategyById(id) { return data.strategies.find(s => s.id === id); }
@@ -492,10 +494,20 @@
         docRef = window.db.collection('users').doc(uid).collection('modules').doc('trading');
         unsubscribe = docRef.onSnapshot(snap => {
             if (snap.exists) data = Object.assign(defaultData(), snap.data());
-            else { data = defaultData(); docRef.set(data).catch(err => console.error('Errore inizializzazione Trading:', err)); }
+            else {
+                data = defaultData();
+                docRef.set(data).catch(err => {
+                    console.error('Errore inizializzazione Trading:', err);
+                    showToast('Errore inizializzazione Trading', 'error');
+                });
+            }
             if (!ready) { ready = true; renderShell(); }
             renderContent();
-        }, err => { console.error('Errore lettura Trading:', err); renderLoading(); });
+        }, err => {
+            console.error('Errore lettura Trading:', err);
+            showToast('Errore lettura Trading', 'error');
+            renderLoading();
+        });
     }
 
     function stopForLogout() {

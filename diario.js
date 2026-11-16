@@ -1,10 +1,6 @@
 (function () {
-
-    function pad2(n) { return String(n).padStart(2, '0'); }
-    function formatDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
-    function todayStr() { return formatDate(new Date()); }
-    function parseDateStr(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
-    function uid() { return 'e_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+    // Usa le funzioni condivise da Utils
+    const { esc, uid, pad2, formatDate, todayStr, parseDateStr, showToast } = window.Utils;
 
     const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
     const WEEKDAYS_LONG = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
@@ -61,7 +57,12 @@
 
     function saveData() {
         if (!docRef) return;
-        docRef.set(data).catch(err => console.error('Errore salvataggio Diario:', err));
+        docRef.set(data)
+            .then(() => showToast('Salvato', 'success'))
+            .catch(err => {
+                console.error('Errore salvataggio Diario:', err);
+                showToast('Errore nel salvataggio', 'error');
+            });
     }
 
     // ---------- State ----------
@@ -72,8 +73,6 @@
         filterDate: null,
         searchQuery: ''
     };
-
-    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
     function entriesForDate(dateStr) {
         return data.entries.filter(e => e.date === dateStr).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -301,7 +300,7 @@
                 const e = data.entries.find(x => x.id === entryId);
                 Object.assign(e, { date: dateVal, title: titleVal, text: textVal, mood: selectedMood });
             } else {
-                data.entries.push({ id: uid(), date: dateVal, title: titleVal, text: textVal, mood: selectedMood, createdAt: new Date().toISOString() });
+                data.entries.push({ id: uid('e'), date: dateVal, title: titleVal, text: textVal, mood: selectedMood, createdAt: new Date().toISOString() });
             }
             saveData();
             overlay.remove();
@@ -329,12 +328,16 @@
                 data = snap.data();
             } else {
                 data = { entries: [] };
-                docRef.set(data).catch(err => console.error('Errore inizializzazione Diario:', err));
+                docRef.set(data).catch(err => {
+                    console.error('Errore inizializzazione Diario:', err);
+                    showToast('Errore inizializzazione Diario', 'error');
+                });
             }
             if (!ready) { ready = true; renderShell(); }
             renderContent();
         }, err => {
             console.error('Errore lettura Diario:', err);
+            showToast('Errore lettura Diario', 'error');
             renderLoading();
         });
     }

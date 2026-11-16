@@ -1,4 +1,7 @@
 (function () {
+    // Usa le funzioni condivise da Utils
+    const { todayStr, showToast } = window.Utils;
+
     const FORMAT = 'app-personale';
     const MODULES = ['todo', 'diario', 'notes', 'finanze', 'trading', 'matty', 'spazio', 'reselling', 'xp'];
     const REQUIRED = {
@@ -12,9 +15,6 @@
         reselling: ['items'],
         xp: ['events', 'routines']
     };
-
-    function pad2(n) { return String(n).padStart(2, '0'); }
-    function todayStr() { const d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
 
     function modulesRef() {
         const u = window.currentUser;
@@ -45,9 +45,10 @@
             }
             const backup = { app: FORMAT, version: 1, exportedAt: new Date().toISOString(), modules };
             download('backup-app-personale-' + todayStr() + '.json', JSON.stringify(backup, null, 2));
+            showToast('Backup esportato', 'success');
         } catch (err) {
             console.error('Errore esportazione:', err);
-            alert('Esportazione non riuscita: ' + err.message);
+            showToast('Esportazione non riuscita', 'error');
         }
     }
 
@@ -83,7 +84,7 @@
         try {
             valid = validate(JSON.parse(await file.text()));
         } catch (err) {
-            alert(err instanceof SyntaxError ? 'File non valido.' : err.message);
+            showToast(err instanceof SyntaxError ? 'File non valido' : err.message, 'error');
             return;
         }
 
@@ -95,10 +96,10 @@
             const batch = window.db.batch();
             Object.keys(valid).forEach(name => batch.set(ref.doc(name), valid[name]));
             await batch.commit();
-            alert('Backup ripristinato.');
+            showToast('Backup ripristinato', 'success');
         } catch (err) {
             console.error('Errore ripristino:', err);
-            alert('Ripristino non riuscito: ' + err.message);
+            showToast('Ripristino non riuscito', 'error');
         }
     }
 

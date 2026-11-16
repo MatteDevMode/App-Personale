@@ -1,12 +1,9 @@
 (function () {
     const PALETTE = ['#6C8CF5', '#9B7CF8', '#3FCFA0', '#5AB7E8', '#C77DF0', '#4FD1C5', '#E0B34D'];
 
-    function pad2(n) { return String(n).padStart(2, '0'); }
-    function formatDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
-    function todayStr() { return formatDate(new Date()); }
-    function parseDateStr(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
-    function uid(p) { return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
-    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    // Usa le funzioni condivise da Utils
+    const { esc, uid, pad2, formatDate, todayStr, parseDateStr, showToast } = window.Utils;
+
     function eur(n) { return (n || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' }); }
 
     const MONTHS = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
@@ -41,7 +38,12 @@
 
     function saveData() {
         if (!docRef) return;
-        docRef.set(data).catch(err => console.error('Errore salvataggio Finanze:', err));
+        docRef.set(data)
+            .then(() => showToast('Salvato', 'success'))
+            .catch(err => {
+                console.error('Errore salvataggio Finanze:', err);
+                showToast('Errore nel salvataggio', 'error');
+            });
     }
 
     function accById(id) { return data.accounts.find(a => a.id === id); }
@@ -563,12 +565,16 @@
                 data = snap.data();
             } else {
                 data = defaultData();
-                docRef.set(data).catch(err => console.error('Errore inizializzazione Finanze:', err));
+                docRef.set(data).catch(err => {
+                    console.error('Errore inizializzazione Finanze:', err);
+                    showToast('Errore inizializzazione Finanze', 'error');
+                });
             }
             if (!ready) { ready = true; renderShell(); }
             renderContent();
         }, err => {
             console.error('Errore lettura Finanze:', err);
+            showToast('Errore lettura Finanze', 'error');
             renderLoading();
         });
     }

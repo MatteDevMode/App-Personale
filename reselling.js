@@ -1,11 +1,8 @@
 (function () {
-    function pad2(n) { return String(n).padStart(2, '0'); }
-    function formatDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
-    function todayStr() { return formatDate(new Date()); }
-    function parseDateStr(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+    // Usa le funzioni condivise da Utils
+    const { esc, uid, pad2, formatDate, todayStr, parseDateStr, showToast } = window.Utils;
+
     function daysBetween(a, b) { return Math.max(0, Math.round((parseDateStr(b) - parseDateStr(a)) / 86400000)); }
-    function uid(p) { return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
-    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
     function attr(s) { return esc(s).replace(/"/g, '&quot;'); }
     function eur(n) { return (n || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' }); }
     function num(v) { const n = parseFloat(String(v || '').replace(',', '.')); return isNaN(n) ? NaN : n; }
@@ -153,7 +150,15 @@
     let charts = { m: null, c: null };
     const state = { view: 'items', status: 'all', q: '', sort: 'recent', cat: '', brand: '', period: 'month' };
 
-    function saveData() { if (docRef) docRef.set(data).catch(err => console.error('Errore salvataggio Reselling:', err)); }
+    function saveData() {
+        if (!docRef) return;
+        docRef.set(data)
+            .then(() => showToast('Salvato', 'success'))
+            .catch(err => {
+                console.error('Errore salvataggio Reselling:', err);
+                showToast('Errore nel salvataggio', 'error');
+            });
+    }
     function itemById(id) { return data.items.find(i => i.id === id); }
     function accById(id) { return (fin.accounts || []).find(a => a.id === id); }
 
@@ -597,13 +602,25 @@
         finRef = base.doc('finanze');
         unsubs.push(docRef.onSnapshot(snap => {
             if (snap.exists) { data = Object.assign(defaultData(), snap.data()); data.settings = Object.assign(defaultData().settings, data.settings); }
-            else { data = defaultData(); docRef.set(data).catch(err => console.error('Errore inizializzazione Reselling:', err)); }
+            else {
+                data = defaultData();
+                docRef.set(data).catch(err => {
+                    console.error('Errore inizializzazione Reselling:', err);
+                    showToast('Errore inizializzazione Reselling', 'error');
+                });
+            }
             loaded.r = true; tryReady();
-        }, err => { console.error('Errore lettura Reselling:', err); }));
+        }, err => {
+            console.error('Errore lettura Reselling:', err);
+            showToast('Errore lettura Reselling', 'error');
+        }));
         unsubs.push(finRef.onSnapshot(snap => {
             fin = Object.assign({ accounts: [], categories: [], transactions: [], items: [], settings: {} }, snap.exists ? snap.data() : {});
             loaded.f = true; tryReady();
-        }, err => { console.error('Errore lettura Finanze (Reselling):', err); loaded.f = true; tryReady(); }));
+        }, err => {
+            console.error('Errore lettura Finanze (Reselling):', err);
+            loaded.f = true; tryReady();
+        }));
     }
 
     function stop() {

@@ -1,8 +1,7 @@
 (function () {
-    function pad2(n) { return String(n).padStart(2, '0'); }
-    function todayStr() { const d = new Date(); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
-    function uid(p) { return p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
-    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    // Usa le funzioni condivise da Utils
+    const { esc, uid, pad2, todayStr, showToast } = window.Utils;
+
     function hash(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
     const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
     function fmtDateTime(iso) { const d = new Date(iso); return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() + ' \u00b7 ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()); }
@@ -59,12 +58,28 @@
     let dirty = false, saveTimer = null;
     let currentPhrase = null, mountEl = null;
 
-    function saveMatty() { if (mattyRef) mattyRef.set(matty).catch(err => console.error('Errore salvataggio Matty:', err)); }
+    function saveMatty() {
+        if (!mattyRef) return;
+        mattyRef.set(matty)
+            .then(() => showToast('Salvato', 'success'))
+            .catch(err => {
+                console.error('Errore salvataggio Matty:', err);
+                showToast('Errore nel salvataggio', 'error');
+            });
+    }
     function saveSpazio(now) {
         if (!spazioRef) return;
         dirty = true;
         clearTimeout(saveTimer);
-        const run = () => { dirty = false; spazioRef.set(spazio).catch(err => console.error('Errore salvataggio Spazio Privato:', err)); };
+        const run = () => {
+            dirty = false;
+            spazioRef.set(spazio)
+                .then(() => showToast('Salvato', 'success'))
+                .catch(err => {
+                    console.error('Errore salvataggio Spazio Privato:', err);
+                    showToast('Errore nel salvataggio', 'error');
+                });
+        };
         if (now) run(); else saveTimer = setTimeout(run, 600);
     }
     function getSession(id) { return spazio.sessions.find(s => s.id === id); }
@@ -545,11 +560,17 @@
         spazioRef = base.doc('spazio');
         unsubs.push(mattyRef.onSnapshot(snap => {
             matty = Object.assign({ customPhrases: [] }, snap.exists ? snap.data() : {});
-        }, err => console.error('Errore lettura Matty:', err)));
+        }, err => {
+            console.error('Errore lettura Matty:', err);
+            showToast('Errore lettura Matty', 'error');
+        }));
         unsubs.push(spazioRef.onSnapshot(snap => {
             if (dirty || (ov && view === 'flow')) return; // non sovrascrivere ciò che sto scrivendo
             spazio = Object.assign({ sessions: [] }, snap.exists ? snap.data() : {});
-        }, err => console.error('Errore lettura Spazio Privato:', err)));
+        }, err => {
+            console.error('Errore lettura Spazio Privato:', err);
+            showToast('Errore lettura Spazio Privato', 'error');
+        }));
     }
 
     function stop() {

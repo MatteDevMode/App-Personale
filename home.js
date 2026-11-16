@@ -1,10 +1,8 @@
 (function () {
-    function pad2(n) { return String(n).padStart(2, '0'); }
-    function formatDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
-    function todayStr() { return formatDate(new Date()); }
-    function parseDateStr(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
-    function shiftDate(s, n) { const d = parseDateStr(s); d.setDate(d.getDate() + n); return formatDate(d); }
-    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    // Usa le funzioni condivise da Utils
+    const { esc, pad2, formatDate, todayStr, parseDateStr, addDaysToDate, showToast } = window.Utils;
+
+    function shiftDate(s, n) { return addDaysToDate(s, n); }
     function eur(n) { return (n || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' }); }
     function toMin(t) { const [h, m] = t.split(':').map(Number); return h * 60 + m; }
 
@@ -234,6 +232,7 @@
             render();
         }, err => {
             console.error('Errore lettura Panoramica (' + key + '):', err);
+            showToast('Errore lettura ' + key, 'error');
             loaded[key] = true;
             render();
         }));

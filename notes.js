@@ -1,6 +1,7 @@
 (function () {
-  function uid() { return 'n_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-  function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  // Usa le funzioni condivise da Utils
+  const { esc, uid, showToast } = window.Utils;
+
   function defaultData() { return { notes: [] }; }
 
   function formatUpdated(iso) {
@@ -38,7 +39,12 @@
 
   function saveData() {
     if (!docRef) return;
-    docRef.set(data).catch(err => console.error('Errore salvataggio Note:', err));
+    docRef.set(data)
+      .then(() => showToast('Salvato', 'success'))
+      .catch(err => {
+        console.error('Errore salvataggio Note:', err);
+        showToast('Errore nel salvataggio', 'error');
+      });
   }
 
   function scheduleSave() {
@@ -75,7 +81,7 @@
 
   function createNote() {
     const now = new Date().toISOString();
-    const note = { id: uid(), title: '', text: '', createdAt: now, updatedAt: now };
+    const note = { id: uid('n'), title: '', text: '', createdAt: now, updatedAt: now };
     data.notes.unshift(note);
     state.selectedId = note.id;
     state.searchQuery = '';
@@ -277,7 +283,10 @@
         data = { notes: Array.isArray(raw.notes) ? raw.notes : [] };
       } else {
         data = defaultData();
-        docRef.set(data).catch(err => console.error('Errore inizializzazione Note:', err));
+        docRef.set(data).catch(err => {
+          console.error('Errore inizializzazione Note:', err);
+          showToast('Errore inizializzazione Note', 'error');
+        });
       }
       if (skipNextRender) {
         skipNextRender = false;
@@ -287,6 +296,7 @@
       renderAll();
     }, err => {
       console.error('Errore lettura Note:', err);
+      showToast('Errore lettura Note', 'error');
       renderLoading();
     });
   }

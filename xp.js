@@ -1,12 +1,9 @@
 (function () {
-    function pad2(n) { return String(n).padStart(2, '0'); }
-    function formatDate(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
-    function todayStr() { return formatDate(new Date()); }
-    function parseDateStr(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
-    function shiftDate(s, n) { const d = parseDateStr(s); d.setDate(d.getDate() + n); return formatDate(d); }
-    function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+    // Usa le funzioni condivise da Utils
+    const { esc, uid, pad2, formatDate, todayStr, parseDateStr, addDaysToDate, showToast } = window.Utils;
+
+    function shiftDate(s, n) { return addDaysToDate(s, n); }
     function attr(s) { return esc(s).replace(/"/g, '&quot;'); }
-    function uid() { return 'r_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 
     const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
     const MONTHS_SHORT = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
@@ -43,7 +40,15 @@
     function resetLoaded() { loaded = { x: false, todo: false, diario: false, trading: false, reselling: false }; }
     resetLoaded();
     function allLoaded() { return loaded.x && loaded.todo && loaded.diario && loaded.trading && loaded.reselling; }
-    function save() { if (docRef) docRef.set(data).catch(err => console.error('Errore salvataggio Progressi:', err)); }
+    function save() {
+        if (!docRef) return;
+        docRef.set(data)
+            .then(() => showToast('Salvato', 'success'))
+            .catch(err => {
+                console.error('Errore salvataggio Progressi:', err);
+                showToast('Errore nel salvataggio', 'error');
+            });
+    }
 
     function dayRaw() { const m = {}; data.events.forEach(e => { m[e.date] = (m[e.date] || 0) + e.xp; }); return m; }
     function totalXP() {
@@ -410,7 +415,7 @@
             const fields = { name, icon: q('#rtIcon').value.trim(), target, weight: q('#rtWeight').value, auto: q('#rtAuto').value || null, days: sel.size === 7 ? [] : Array.from(sel) };
             if (!fields.days.length && sel.size !== 7) { alert('Scegli almeno un giorno.'); return; }
             if (isEdit) Object.assign(r, fields);
-            else data.routines.push(Object.assign({ id: uid(), since: todayStr() }, fields));
+            else data.routines.push(Object.assign({ id: uid('r'), since: todayStr() }, fields));
             overlay.remove(); engine();
         };
         document.body.appendChild(overlay);
@@ -420,7 +425,7 @@
     function seedIfNeeded() {
         if (data.seeded) return;
         const today = todayStr();
-        SEED.forEach(s => data.routines.push(Object.assign({ id: uid(), since: today, days: [] }, s)));
+        SEED.forEach(s => data.routines.push(Object.assign({ id: uid('r'), since: today, days: [] }, s)));
         data.seeded = true;
         save();
     }
@@ -447,7 +452,10 @@
             seedIfNeeded();
             ready = allLoaded();
             engine();
-        }, err => console.error('Errore lettura Progressi:', err)));
+        }, err => {
+            console.error('Errore lettura Progressi:', err);
+            showToast('Errore lettura Progressi', 'error');
+        }));
         listen('todo', 'todo', d => { src.todo = Object.assign({ tasks: [] }, d); });
         listen('diario', 'diario', d => { src.diario = Object.assign({ entries: [] }, d); });
         listen('trading', 'trading', d => { src.trading = Object.assign({ trades: [] }, d); });
