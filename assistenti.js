@@ -331,13 +331,25 @@
 
     window.Assistants = {
         onShow: function () {
-            if (!ready) renderShell();
-            else syncDayNight();
+            try {
+                const page = document.getElementById('page-assistants');
+                if (!page) {
+                    console.error('page-assistants non trovato in index.html');
+                    return;
+                }
+                if (!ready || !page.querySelector('.as-apartment')) {
+                    renderShell();
+                } else {
+                    syncDayNight();
+                }
+            } catch (err) {
+                console.error('Errore Casa IA:', err);
+                const page = document.getElementById('page-assistants');
+                if (page) {
+                    page.innerHTML = '<div class="page-header"><h1>Casa IA</h1></div>' +
+                        '<p class="empty-hint">Errore nel caricamento: ' + (err && err.message ? err.message : String(err)) + '</p>';
+                }
+            }
         }
     };
-
-    // Se la pagina è già visibile al load
-    window.addEventListener('DOMContentLoaded', function () {
-        // no-op: switchPage chiamerà onShow
-    });
 })();
