@@ -1,0 +1,728 @@
+/* ========== Casa Assistenti ========== */
+
+#page-assistants {
+    padding-bottom: 2rem;
+    max-width: 520px;
+    margin: 0 auto;
+}
+
+.as-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    gap: 12px;
+}
+
+.as-top h1 {
+    margin: 0;
+    font-family: var(--font-head);
+    font-size: 1.45rem;
+}
+
+.as-top .eyebrow {
+    margin: 0 0 4px;
+}
+
+.as-clock {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 12px;
+    white-space: nowrap;
+    align-self: center;
+}
+
+.as-clock.night {
+    color: #9BB0E8;
+    border-color: rgba(155, 176, 232, 0.25);
+}
+
+/* ---- Appartamento verticale ---- */
+.as-apartment {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.as-room {
+    position: relative;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    overflow: hidden;
+    min-height: 220px;
+}
+
+.as-room-label {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    z-index: 5;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: var(--bg-page);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    pointer-events: none;
+}
+
+/* Zona giorno */
+.as-room-day {
+    min-height: 260px;
+    background:
+        linear-gradient(180deg, rgba(124, 140, 248, 0.06) 0%, transparent 40%),
+        var(--bg-card);
+}
+
+.as-floor-day {
+    position: absolute;
+    inset: 0;
+    background:
+        repeating-linear-gradient(90deg,
+            transparent,
+            transparent 28px,
+            rgba(255, 255, 255, 0.015) 28px,
+            rgba(255, 255, 255, 0.015) 29px),
+        repeating-linear-gradient(0deg,
+            transparent,
+            transparent 28px,
+            rgba(255, 255, 255, 0.015) 28px,
+            rgba(255, 255, 255, 0.015) 29px);
+    pointer-events: none;
+}
+
+/* Zona notte */
+.as-room-night {
+    min-height: 240px;
+    background:
+        linear-gradient(180deg, rgba(60, 80, 140, 0.12) 0%, transparent 50%),
+        var(--bg-card);
+}
+
+.as-room-night.is-night-mode {
+    background:
+        linear-gradient(180deg, rgba(40, 50, 90, 0.35) 0%, rgba(20, 25, 45, 0.2) 100%),
+        var(--bg-card);
+}
+
+/* ---- Mobili giorno ---- */
+.as-furniture {
+    position: absolute;
+    z-index: 2;
+}
+
+.as-window {
+    top: 28px;
+    right: 18px;
+    width: 72px;
+    height: 56px;
+    border-radius: 8px;
+    background: linear-gradient(160deg, #7EB8E8 0%, #B8D4F0 40%, #E8F4FC 100%);
+    border: 3px solid #3A4558;
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+}
+
+.as-window::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(90deg, transparent 48%, rgba(30, 40, 55, 0.35) 48%, rgba(30, 40, 55, 0.35) 52%, transparent 52%),
+        linear-gradient(0deg, transparent 48%, rgba(30, 40, 55, 0.35) 48%, rgba(30, 40, 55, 0.35) 52%, transparent 52%);
+}
+
+.as-window.night-view {
+    background: linear-gradient(160deg, #1a2040 0%, #2a3560 50%, #1e2848 100%);
+}
+
+.as-tv {
+    top: 36px;
+    left: 20px;
+    width: 90px;
+    height: 54px;
+    border-radius: 6px;
+    background: #1a1e28;
+    border: 3px solid #2a3140;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.as-tv-screen {
+    position: absolute;
+    inset: 4px;
+    border-radius: 3px;
+    background: #0d1017;
+    transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+.as-tv.on .as-tv-screen {
+    background: linear-gradient(135deg, #3a5a8a, #2a4060);
+    box-shadow: 0 0 16px rgba(100, 140, 220, 0.35);
+}
+
+.as-tv-stand {
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 8px;
+    background: #2a3140;
+    border-radius: 2px;
+}
+
+.as-sofa {
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 140px;
+    height: 48px;
+    border-radius: 10px 10px 6px 6px;
+    background: #4a5568;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.as-sofa::before {
+    content: '';
+    position: absolute;
+    top: -14px;
+    left: 8px;
+    right: 8px;
+    height: 18px;
+    border-radius: 8px 8px 0 0;
+    background: #5a6578;
+}
+
+.as-plant {
+    bottom: 20px;
+    right: 22px;
+    width: 28px;
+    height: 36px;
+}
+
+.as-plant::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 12px;
+    background: #8B6914;
+    border-radius: 2px 2px 4px 4px;
+}
+
+.as-plant::after {
+    content: '';
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 22px;
+    height: 22px;
+    background: #3FCFA0;
+    border-radius: 50% 0 50% 50%;
+    box-shadow: -6px 4px 0 -2px #2a9e78, 6px 2px 0 -3px #2a9e78;
+}
+
+.as-coffee {
+    bottom: 78px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 56px;
+    height: 28px;
+    border-radius: 6px;
+    background: #6B5344;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ---- Mobili notte ---- */
+.as-bed {
+    width: 70px;
+    height: 44px;
+    border-radius: 6px;
+    background: #3d4a62;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.as-bed::before {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    right: 4px;
+    height: 14px;
+    border-radius: 4px;
+    background: #e8eaf0;
+    opacity: 0.85;
+}
+
+.as-bed-1 {
+    top: 40px;
+    left: 24px;
+}
+
+.as-bed-2 {
+    top: 40px;
+    left: 110px;
+}
+
+.as-desk {
+    bottom: 28px;
+    width: 88px;
+    height: 52px;
+    border-radius: 8px;
+    background: #2a3140;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.as-desk:hover {
+    border-color: var(--border-strong);
+}
+
+.as-desk-trainer {
+    left: 24px;
+    border-color: rgba(63, 207, 160, 0.35);
+}
+
+.as-desk-trainer:hover,
+.as-desk-trainer.active {
+    border-color: #3FCFA0;
+    box-shadow: 0 0 18px rgba(63, 207, 160, 0.25);
+}
+
+.as-desk-nutri {
+    right: 24px;
+    left: auto;
+    border-color: rgba(90, 160, 230, 0.25);
+    opacity: 0.55;
+    cursor: default;
+}
+
+.as-monitor {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 32px;
+    border-radius: 4px;
+    background: #1a1e28;
+    border: 2px solid #333;
+}
+
+.as-monitor-screen {
+    position: absolute;
+    inset: 3px;
+    border-radius: 2px;
+    background: #0d1017;
+    transition: background 0.35s ease, box-shadow 0.35s ease;
+}
+
+.as-desk-trainer.active .as-monitor-screen {
+    background: linear-gradient(160deg, #1a3a2a, #0d2018);
+    box-shadow: 0 0 12px rgba(63, 207, 160, 0.45);
+}
+
+.as-desk-trainer.active .as-monitor-screen::after {
+    content: '';
+    position: absolute;
+    inset: 4px;
+    border-radius: 1px;
+    background: linear-gradient(90deg, #3FCFA0 0%, transparent 30%, transparent 70%, #3FCFA0 100%);
+    opacity: 0.4;
+    animation: as-screen-glow 2s ease-in-out infinite;
+}
+
+@keyframes as-screen-glow {
+
+    0%,
+    100% {
+        opacity: 0.25;
+    }
+
+    50% {
+        opacity: 0.55;
+    }
+}
+
+.as-chair {
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 16px;
+    border-radius: 4px 4px 2px 2px;
+    background: #222830;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.as-desk-label {
+    position: absolute;
+    bottom: 4px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.as-desk-trainer .as-desk-label {
+    color: #3FCFA0;
+}
+
+.as-desk-nutri .as-desk-label {
+    color: #5AA0E6;
+}
+
+/* ---- Robot ---- */
+.as-robot {
+    position: absolute;
+    z-index: 10;
+    width: 36px;
+    height: 48px;
+    transform: translate(-50%, -100%);
+    transition: left 1.8s ease-in-out, top 1.8s ease-in-out;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.as-robot * {
+    pointer-events: none;
+}
+
+.as-robot-body {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 26px;
+    height: 28px;
+    border-radius: 8px 8px 6px 6px;
+    background: #3FCFA0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.as-robot-head {
+    position: absolute;
+    bottom: 26px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 22px;
+    height: 20px;
+    border-radius: 7px;
+    background: #4FE0B0;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.as-robot-eye {
+    position: absolute;
+    top: 7px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #0D1017;
+}
+
+.as-robot-eye.l {
+    left: 4px;
+}
+
+.as-robot-eye.r {
+    right: 4px;
+}
+
+.as-robot-arm {
+    position: absolute;
+    bottom: 10px;
+    width: 6px;
+    height: 14px;
+    border-radius: 3px;
+    background: #2a9e78;
+}
+
+.as-robot-arm.l {
+    left: 0;
+}
+
+.as-robot-arm.r {
+    right: 0;
+}
+
+.as-robot-leg {
+    position: absolute;
+    bottom: -4px;
+    width: 7px;
+    height: 8px;
+    border-radius: 2px;
+    background: #2a9e78;
+}
+
+.as-robot-leg.l {
+    left: 6px;
+}
+
+.as-robot-leg.r {
+    right: 6px;
+}
+
+.as-robot-badge {
+    position: absolute;
+    top: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    font-weight: 700;
+    color: #0D1017;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 3px;
+    padding: 1px 3px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.as-robot:hover .as-robot-badge {
+    opacity: 1;
+}
+
+/* Stati animazione */
+.as-robot.state-idle .as-robot-body {
+    animation: as-idle-bob 2.4s ease-in-out infinite;
+}
+
+@keyframes as-idle-bob {
+
+    0%,
+    100% {
+        transform: translateX(-50%) translateY(0);
+    }
+
+    50% {
+        transform: translateX(-50%) translateY(-3px);
+    }
+}
+
+.as-robot.state-walk .as-robot-leg.l {
+    animation: as-walk-l 0.4s ease-in-out infinite;
+}
+
+.as-robot.state-walk .as-robot-leg.r {
+    animation: as-walk-r 0.4s ease-in-out infinite;
+}
+
+@keyframes as-walk-l {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+@keyframes as-walk-r {
+
+    0%,
+    100% {
+        transform: translateY(-3px);
+    }
+
+    50% {
+        transform: translateY(0);
+    }
+}
+
+.as-robot.state-sit {
+    height: 36px;
+}
+
+.as-robot.state-sit .as-robot-leg {
+    height: 4px;
+    bottom: 0;
+}
+
+.as-robot.state-sit .as-robot-body {
+    height: 22px;
+    border-radius: 8px 8px 4px 4px;
+}
+
+.as-robot.state-sleep {
+    transform: translate(-50%, -100%) rotate(90deg);
+    transition: left 1.8s ease-in-out, top 1.8s ease-in-out, transform 0.6s ease;
+}
+
+.as-robot.state-sleep .as-robot-eye {
+    height: 2px;
+    border-radius: 1px;
+    top: 9px;
+}
+
+.as-robot.state-workout .as-robot-body {
+    animation: as-workout 0.7s ease-in-out infinite;
+}
+
+.as-robot.state-workout .as-robot-arm {
+    animation: as-workout-arm 0.7s ease-in-out infinite;
+}
+
+@keyframes as-workout {
+
+    0%,
+    100% {
+        transform: translateX(-50%) translateY(0) scaleY(1);
+    }
+
+    50% {
+        transform: translateX(-50%) translateY(6px) scaleY(0.85);
+    }
+}
+
+@keyframes as-workout-arm {
+
+    0%,
+    100% {
+        transform: rotate(0deg);
+    }
+
+    50% {
+        transform: rotate(-25deg);
+    }
+}
+
+.as-robot.state-talk .as-robot-head {
+    animation: as-talk 0.35s ease-in-out infinite;
+}
+
+@keyframes as-talk {
+
+    0%,
+    100% {
+        transform: translateX(-50%) scale(1);
+    }
+
+    50% {
+        transform: translateX(-50%) scale(1.06);
+    }
+}
+
+/* Nuvoletta */
+.as-bubble {
+    position: absolute;
+    z-index: 20;
+    max-width: 180px;
+    padding: 8px 12px;
+    background: var(--bg-page);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    font-size: 12px;
+    color: var(--text-primary);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.as-bubble.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.as-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 20px;
+    width: 10px;
+    height: 10px;
+    background: var(--bg-page);
+    border-right: 1px solid var(--border-strong);
+    border-bottom: 1px solid var(--border-strong);
+    transform: rotate(45deg);
+}
+
+.as-zzz {
+    position: absolute;
+    z-index: 15;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-muted);
+    opacity: 0;
+    pointer-events: none;
+    animation: as-zzz 2s ease-in-out infinite;
+}
+
+.as-zzz.visible {
+    opacity: 1;
+}
+
+@keyframes as-zzz {
+    0% {
+        transform: translateY(0) scale(0.9);
+        opacity: 0.4;
+    }
+
+    50% {
+        transform: translateY(-10px) scale(1.1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-18px) scale(0.95);
+        opacity: 0.3;
+    }
+}
+
+/* Hint sotto */
+.as-hint {
+    margin-top: 12px;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.as-hint strong {
+    color: var(--teal);
+}
+
+/* Chat placeholder (fase successiva) */
+.as-chat-panel {
+    display: none;
+}
+
+/* Responsive */
+@media (max-width: 420px) {
+    .as-room-day {
+        min-height: 240px;
+    }
+
+    .as-room-night {
+        min-height: 220px;
+    }
+
+    .as-sofa {
+        width: 120px;
+    }
+
+    .as-desk {
+        width: 78px;
+    }
+}
