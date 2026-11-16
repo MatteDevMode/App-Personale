@@ -16,19 +16,28 @@
     const LS_KEY = 'app-personale-groq-key';
 
     const SYSTEM_PROMPT =
-        'Sei un personal trainer esperto e motivante. Chiedi sempre: obiettivo (forza/massa/dimagrire/resistenza), ' +
+        'Sei un personal trainer esperto e motivante. Chiedi sempre (se non li conosci già): obiettivo (forza/massa/dimagrire/resistenza), ' +
         'giorni disponibili a settimana, attrezzatura (palestra/casa/manubri/niente), livello esperienza ' +
         '(principiante/intermedio/avanzato), eventuali infortuni o limitazioni. Poi suggerisci scheda allenamento ' +
-        'dettagliata con: esercizi, serie, ripetizioni, riposo tra serie, note tecniche su forma corretta. ' +
-        'Rispondi in italiano, tono energico ma professionale. Se l\'utente chiede di registrare un allenamento, ' +
-        'struttura la risposta in modo chiaro con elenco esercizi.';
+        'dettagliata con esercizi, serie, ripetizioni, riposo, note sulla forma. Rispondi in italiano, tono energico ma professionale. ' +
+        'Quando proponi una scheda di allenamento, ALLA FINE del messaggio includi SEMPRE questo blocco esatto (una riga per esercizio):\n' +
+        '---SCHEDA---\n' +
+        'tipo: Nome della sessione (es. Full body, Push, Gambe)\n' +
+        'Squat | 3 | 10 | 90 | Scendi controllato\n' +
+        'Panca piana | 3 | 8 | 120 | Gomiti a 45 gradi\n' +
+        '---FINE---\n' +
+        'Formato riga esercizio: Nome | serie | ripetizioni | riposo_secondi | nota breve. ' +
+        'Non omettere il blocco ---SCHEDA--- quando dai una scheda.';
 
     const QUICK = [
         { id: 'scheda', label: 'Suggerisci allenamento', msg: 'Suggeriscimi una scheda di allenamento adatta a me.' },
-        { id: 'registro', label: 'Registra esercizio', msg: 'Voglio registrare un allenamento che ho appena fatto.' },
+        { id: 'registro', label: 'Registra fatto', action: 'log' },
         { id: 'profilo', label: 'Il mio profilo', msg: 'Mostrami il mio profilo allenamento e chiedimi di aggiornarlo se manca qualcosa.' },
-        { id: 'progressi', label: 'Progressi', msg: 'Come sto andando? Fammi un riepilogo dei progressi in base a quello che sai.' }
+        { id: 'progressi', label: 'Progressi', msg: 'Come sto andando? Usa i miei allenamenti registrati se ci sono e fammi un riepilogo.' }
     ];
+
+    let pendingScheda = null; // ultima scheda parsata dalla risposta bot
+    let logDraft = null;      // draft form registrazione
 
     const DAY_SPOTS = {
         center: { x: 50, y: 55 },
@@ -288,7 +297,10 @@
             b.type = 'button';
             b.className = 'as-chip';
             b.textContent = q.label;
-            b.addEventListener('click', function () { sendUserMessage(q.msg); });
+            b.addEventListener('click', function () {
+                if (q.action === 'log') openLogForm();
+                else sendUserMessage(q.msg);
+            });
             quick.appendChild(b);
         });
 
@@ -314,6 +326,17 @@
         return chatEl;
     }
 
+    function stripSchedaBlock(text) {
+        return String(text || '').replace(/---SCHEDA---[\s\S]*?---FINE---/gi, '').trim();
+    }
+
+    function formatMsg(text) {
+        var t = esc(stripSchedaBlock(text));
+        t = t.replace(/\n/g, '<br>');
+        t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        return t;
+    }
+
     function renderMessages() {
         var box = document.getElementById('asChatMessages');
         if (!box) return;
@@ -330,15 +353,223 @@
         if (state.sending) {
             html += '<div class="as-msg as-msg-bot"><div class="as-msg-bubble as-typing"><span></span><span></span><span></span></div></div>';
         }
+        if (pendingScheda && pendingScheda.esercizi && pendingScheda.esercizi.length) {
+            html += renderSchedaCard(pendingScheda);
+        }
+        if (logDraft) {
+            html += renderLogForm(logDraft);
+        }
+        // ultimi log
+        var logs = (trainer.workoutLogs || []).slice().sort(function (a, b) {
+            return (b.date || '').localeCompare(a.date || '');
+        }).slice(0, 3);
+        if (logs.length && !logDraft) {
+            html += '<div class="as-log-summary"><div class="as-log-summary-title">Ultimi allenamenti</div>';
+            logs.forEach(function (l) {
+                html += '<div class="as-log-row"><strong>' + esc(l.date) + '</strong> · ' + esc(l.tipo || 'Sessione') +
+                    ' · ' + (l.esercizi ? l.esercizi.length : 0) + ' esercizi' +
+                    (l.durataMinuti ? ' · ' + l.durataMinuti + ' min' : '') + '</div>';
+            });
+            html += '</div>';
+        }
         box.innerHTML = html;
         box.scrollTop = box.scrollHeight;
+        bindSchedaActions(box);
+        bindLogActions(box);
     }
 
-    function formatMsg(text) {
-        var t = esc(text || '');
-        t = t.replace(/\n/g, '<br>');
-        t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-        return t;
+    function renderSchedaCard(scheda) {
+        var rows = (scheda.esercizi || []).map(function (e) {
+            return '<li><strong>' + esc(e.nome) + '</strong> · ' + esc(String(e.serie)) + '×' + esc(String(e.ripetizioni)) +
+                (e.riposo ? ' · riposo ' + esc(String(e.riposo)) + 's' : '') +
+                (e.note ? '<br><span class="as-ex-note">' + esc(e.note) + '</span>' : '') + '</li>';
+        }).join('');
+        return '<div class="as-scheda-card" id="asSchedaCard">' +
+            '<div class="as-scheda-head">Scheda rilevata · <strong>' + esc(scheda.tipo || 'Allenamento') + '</strong></div>' +
+            '<ul class="as-scheda-list">' + rows + '</ul>' +
+            '<div class="as-scheda-actions">' +
+            '<button type="button" class="as-btn-primary" id="asSaveScheda">Salva scheda</button>' +
+            '<button type="button" class="as-btn-secondary" id="asLogFromScheda">Registra come fatto</button>' +
+            '<button type="button" class="as-btn-ghost" id="asDismissScheda">Nascondi</button>' +
+            '</div></div>';
+    }
+
+    function renderLogForm(draft) {
+        var rows = (draft.esercizi || []).map(function (e, i) {
+            return '<div class="as-log-ex" data-i="' + i + '">' +
+                '<input class="as-log-nome" value="' + esc(e.nome || '') + '" placeholder="Esercizio" />' +
+                '<input class="as-log-serie" type="number" min="0" value="' + esc(String(e.serie || '')) + '" placeholder="Serie" />' +
+                '<input class="as-log-rep" type="number" min="0" value="' + esc(String(e.ripetizioni || '')) + '" placeholder="Reps" />' +
+                '<input class="as-log-peso" type="number" min="0" step="0.5" value="' + esc(String(e.peso || '')) + '" placeholder="Kg" />' +
+                '</div>';
+        }).join('');
+        return '<div class="as-log-card" id="asLogCard">' +
+            '<div class="as-scheda-head">Registra allenamento · <input id="asLogTipo" class="as-log-tipo" value="' + esc(draft.tipo || '') + '" placeholder="Tipo (es. Full body)" /></div>' +
+            '<div class="as-log-meta">' +
+            '<label>Data <input type="date" id="asLogDate" value="' + esc(draft.date || todayStr()) + '" /></label>' +
+            '<label>Durata (min) <input type="number" id="asLogDurata" min="0" value="' + esc(String(draft.durataMinuti || '')) + '" placeholder="45" /></label>' +
+            '</div>' +
+            '<div class="as-log-ex-head"><span>Esercizio</span><span>Serie</span><span>Reps</span><span>Kg</span></div>' +
+            '<div id="asLogExList">' + rows + '</div>' +
+            '<button type="button" class="as-btn-ghost" id="asLogAddEx">+ esercizio</button>' +
+            '<div class="as-scheda-actions">' +
+            '<button type="button" class="as-btn-primary" id="asLogSave">Salva allenamento</button>' +
+            '<button type="button" class="as-btn-ghost" id="asLogCancel">Annulla</button>' +
+            '</div></div>';
+    }
+
+    function bindSchedaActions(box) {
+        var save = box.querySelector('#asSaveScheda');
+        var log = box.querySelector('#asLogFromScheda');
+        var dismiss = box.querySelector('#asDismissScheda');
+        if (save) save.addEventListener('click', function () {
+            if (!pendingScheda) return;
+            trainer.scheduledWorkouts = trainer.scheduledWorkouts || [];
+            trainer.scheduledWorkouts.push({
+                id: uid('sw'),
+                date: todayStr(),
+                tipo: pendingScheda.tipo || 'Allenamento',
+                esercizi: pendingScheda.esercizi.slice(),
+                completato: false,
+                createdAt: new Date().toISOString()
+            });
+            pendingScheda = null;
+            showToast('Scheda salvata', 'success');
+            saveTrainer().then(function () { renderMessages(); });
+        });
+        if (log) log.addEventListener('click', function () {
+            if (!pendingScheda) return;
+            openLogForm({
+                tipo: pendingScheda.tipo || 'Allenamento',
+                date: todayStr(),
+                durataMinuti: '',
+                esercizi: pendingScheda.esercizi.map(function (e) {
+                    return { nome: e.nome, serie: e.serie, ripetizioni: e.ripetizioni, peso: '', note: e.note || '' };
+                })
+            });
+        });
+        if (dismiss) dismiss.addEventListener('click', function () {
+            pendingScheda = null;
+            renderMessages();
+        });
+    }
+
+    function bindLogActions(box) {
+        var add = box.querySelector('#asLogAddEx');
+        var save = box.querySelector('#asLogSave');
+        var cancel = box.querySelector('#asLogCancel');
+        if (add) add.addEventListener('click', function () {
+            readLogFormIntoDraft();
+            logDraft.esercizi.push({ nome: '', serie: '', ripetizioni: '', peso: '', note: '' });
+            renderMessages();
+        });
+        if (cancel) cancel.addEventListener('click', function () {
+            logDraft = null;
+            renderMessages();
+        });
+        if (save) save.addEventListener('click', function () {
+            readLogFormIntoDraft();
+            var esercizi = (logDraft.esercizi || []).filter(function (e) { return (e.nome || '').trim(); });
+            if (!esercizi.length) {
+                showToast('Aggiungi almeno un esercizio', 'error');
+                return;
+            }
+            trainer.workoutLogs = trainer.workoutLogs || [];
+            trainer.workoutLogs.push({
+                id: uid('wl'),
+                date: logDraft.date || todayStr(),
+                tipo: logDraft.tipo || 'Sessione',
+                durataMinuti: logDraft.durataMinuti ? Number(logDraft.durataMinuti) : null,
+                esercizi: esercizi,
+                createdAt: new Date().toISOString()
+            });
+            // marca ultima scheda programmata come completata se stesso tipo oggi
+            (trainer.scheduledWorkouts || []).forEach(function (s) {
+                if (!s.completato && s.date === (logDraft.date || todayStr()) && s.tipo === logDraft.tipo) s.completato = true;
+            });
+            logDraft = null;
+            pendingScheda = null;
+            showToast('Allenamento registrato', 'success');
+            showBubble('Bel lavoro! 💪', 2500);
+            saveTrainer().then(function () { renderMessages(); });
+        });
+    }
+
+    function readLogFormIntoDraft() {
+        if (!logDraft) return;
+        var tipo = document.getElementById('asLogTipo');
+        var date = document.getElementById('asLogDate');
+        var durata = document.getElementById('asLogDurata');
+        if (tipo) logDraft.tipo = tipo.value.trim();
+        if (date) logDraft.date = date.value;
+        if (durata) logDraft.durataMinuti = durata.value;
+        var list = document.getElementById('asLogExList');
+        if (!list) return;
+        logDraft.esercizi = [];
+        list.querySelectorAll('.as-log-ex').forEach(function (row) {
+            logDraft.esercizi.push({
+                nome: (row.querySelector('.as-log-nome') || {}).value || '',
+                serie: (row.querySelector('.as-log-serie') || {}).value || '',
+                ripetizioni: (row.querySelector('.as-log-rep') || {}).value || '',
+                peso: (row.querySelector('.as-log-peso') || {}).value || '',
+                note: ''
+            });
+        });
+    }
+
+    function openLogForm(prefill) {
+        ensureChatDom();
+        if (!state.chatOpen) openChat();
+        if (prefill) {
+            logDraft = prefill;
+        } else {
+            // ultima scheda salvata non completata, oppure pending, oppure vuota
+            var base = pendingScheda;
+            if (!base) {
+                var scheduled = (trainer.scheduledWorkouts || []).filter(function (s) { return !s.completato; });
+                base = scheduled.length ? scheduled[scheduled.length - 1] : null;
+            }
+            logDraft = {
+                tipo: (base && base.tipo) || '',
+                date: todayStr(),
+                durataMinuti: '',
+                esercizi: base && base.esercizi && base.esercizi.length
+                    ? base.esercizi.map(function (e) {
+                        return { nome: e.nome, serie: e.serie, ripetizioni: e.ripetizioni, peso: '', note: e.note || '' };
+                    })
+                    : [{ nome: '', serie: '', ripetizioni: '', peso: '', note: '' }]
+            };
+        }
+        renderMessages();
+    }
+
+    function parseSchedaFromText(text) {
+        if (!text) return null;
+        var m = String(text).match(/---SCHEDA---([\s\S]*?)---FINE---/i);
+        if (!m) return null;
+        var body = m[1].trim();
+        var lines = body.split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+        var tipo = 'Allenamento';
+        var esercizi = [];
+        lines.forEach(function (line) {
+            var tipoMatch = line.match(/^tipo\s*:\s*(.+)$/i);
+            if (tipoMatch) {
+                tipo = tipoMatch[1].trim();
+                return;
+            }
+            var parts = line.split('|').map(function (p) { return p.trim(); });
+            if (parts.length >= 3 && parts[0]) {
+                esercizi.push({
+                    nome: parts[0],
+                    serie: parts[1] || '',
+                    ripetizioni: parts[2] || '',
+                    riposo: parts[3] || '',
+                    note: parts[4] || ''
+                });
+            }
+        });
+        if (!esercizi.length) return null;
+        return { tipo: tipo, esercizi: esercizi };
     }
 
     function openChat() {
@@ -479,6 +710,8 @@
             resetUsageIfNeeded();
             trainer.apiUsage.requestsToday = (trainer.apiUsage.requestsToday || 0) + 1;
             tryParseProfileHints(text, reply);
+            var parsed = parseSchedaFromText(reply);
+            if (parsed) pendingScheda = parsed;
             state.sending = false;
             setAction('atpc');
             renderMessages();

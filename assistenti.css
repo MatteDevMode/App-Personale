@@ -1004,3 +1004,145 @@
         width: 100vw;
     }
 }
+
+/* ========== Scheda & log allenamento ========== */
+.as-scheda-card,
+.as-log-card {
+    margin: 4px 0 8px;
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(63, 207, 160, 0.08);
+    border: 1px solid rgba(63, 207, 160, 0.28);
+}
+
+.as-scheda-head {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.as-scheda-list {
+    margin: 0 0 10px;
+    padding-left: 18px;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-primary);
+}
+
+.as-ex-note {
+    font-size: 11.5px;
+    color: var(--text-muted);
+}
+
+.as-scheda-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.as-btn-primary,
+.as-btn-secondary,
+.as-btn-ghost {
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    border: 1px solid var(--border);
+}
+
+.as-btn-primary {
+    background: #3FCFA0;
+    color: #0D1017;
+    border-color: #3FCFA0;
+    font-weight: 600;
+}
+
+.as-btn-secondary {
+    background: var(--bg-card);
+    color: #3FCFA0;
+    border-color: rgba(63, 207, 160, 0.4);
+}
+
+.as-btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.as-btn-primary:hover {
+    filter: brightness(1.06);
+}
+
+.as-btn-secondary:hover,
+.as-btn-ghost:hover {
+    border-color: #3FCFA0;
+    color: #3FCFA0;
+}
+
+.as-log-meta {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.as-log-meta label {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.as-log-meta input,
+.as-log-tipo,
+.as-log-ex input {
+    background: var(--bg-page);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    padding: 7px 9px;
+    font-size: 12.5px;
+    font-family: var(--font-body);
+}
+
+.as-log-tipo {
+    width: 140px;
+    margin-left: 6px;
+}
+
+.as-log-ex-head,
+.as-log-ex {
+    display: grid;
+    grid-template-columns: 1.6fr 0.6fr 0.6fr 0.6fr;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.as-log-ex-head {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.as-log-summary {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    font-size: 12.5px;
+    color: var(--text-secondary);
+}
+
+.as-log-summary-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    font-size: 12px;
+}
+
+.as-log-row {
+    padding: 3px 0;
+}
