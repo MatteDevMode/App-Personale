@@ -199,13 +199,11 @@
             '<p class="home-sub">' + list.length + ' trade · win rate ' + Math.round(wins / list.length * 100) + '% · ' + month + '</p></div>';
     }
 
-    function assistantsCard() {
-        const h = new Date().getHours();
-        const night = h >= 23 || h < 7;
-        return '<div class="home-card" data-go="assistants">' +
-            '<div class="home-head"><p class="home-title">Casa IA</p><span class="home-link">Apri →</span></div>' +
-            '<p class="home-big" style="font-size:20px;">🤖 TrainerBot</p>' +
-            '<p class="home-sub">' + (night ? 'Sta dormendo · toccalo per svegliarlo' : 'Personal Trainer · si muove in casa') + '</p>' +
+    function workoutsCard() {
+        return '<div class="home-card" data-go="workouts">' +
+            '<div class="home-head"><p class="home-title">Allenamenti</p><span class="home-link">Apri →</span></div>' +
+            '<p class="home-big" style="font-size:20px;">💪 Diario fitness</p>' +
+            '<p class="home-sub">Scheda di oggi · storico · progressi</p>' +
             '</div>';
     }
 
@@ -225,7 +223,7 @@
         page.innerHTML =
             '<div class="page-header"><p class="eyebrow" style="text-transform:capitalize;">' + dateLabel + '</p><h1>' + greet + '</h1></div>' +
             '<div id="mattyHome"></div><div id="xpHome"></div><div class="home-grid">' +
-            todayCard() + financeCard() + diaryCard() + notesCard() + tradingCard() + resellingCard() + assistantsCard() +
+            todayCard() + financeCard() + diaryCard() + notesCard() + tradingCard() + resellingCard() + workoutsCard() +
             '</div>';
 
         if (window.Matty) window.Matty.mountHome(document.getElementById('mattyHome'));
