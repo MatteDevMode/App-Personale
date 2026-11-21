@@ -36,6 +36,7 @@
       exercises: [],
       schedules: [],
       workoutLogs: [],
+      conversations: [],
       aiCache: { ultimoSuggerimento: '', timestamp: null }
     };
   }
@@ -187,6 +188,7 @@
       '<div class="wo-header">' +
       '<div><p class="eyebrow">Fitness</p><h1>💪 Allenamenti</h1></div>' +
       '<div class="wo-header-actions">' +
+      '<button type="button" class="wo-icon-btn" id="woChatBtn" title="Chat coach">💬</button>' +
       '<button type="button" class="wo-icon-btn" id="woProfileBtn" title="Profilo">⚙️</button>' +
       '</div>' +
       '</div>' +
@@ -204,6 +206,7 @@
       });
     });
     page.querySelector('#woProfileBtn').addEventListener('click', openProfileModal);
+    page.querySelector('#woChatBtn').addEventListener('click', openChat);
 
     var body = page.querySelector('#woTabBody');
     if (state.tab === 'oggi') renderOggi(body);
@@ -211,15 +214,78 @@
     else renderProgressi(body);
   }
 
+  function renderSchedulesList() {
+    var list = data.schedules || [];
+    if (!list.length) return '';
+    var html = '<div class="wo-card wo-schedules"><p class="wo-card-title">Le tue schede</p><div class="wo-sch-list">';
+    list.forEach(function (s) {
+      var n = (s.esercizi || []).length;
+      html +=
+        '<div class="wo-sch-item' + (s.attiva ? ' active' : '') + '" data-id="' + esc(s.id) + '">' +
+        '<div class="wo-sch-item-main">' +
+        '<div class="wo-sch-item-name">' + esc(s.nome || 'Scheda') + (s.attiva ? ' · attiva' : '') + '</div>' +
+        '<div class="wo-sch-item-meta">' + n + ' esercizi</div>' +
+        '</div>' +
+        '<div class="wo-sch-item-actions">' +
+        (s.attiva
+          ? '<button type="button" class="wo-btn wo-btn-ghost wo-sch-use" data-id="' + esc(s.id) + '" disabled>In uso</button>'
+          : '<button type="button" class="wo-btn wo-btn-primary wo-sch-use" data-id="' + esc(s.id) + '">Usa</button>') +
+        '<button type="button" class="wo-btn wo-btn-ghost wo-sch-edit" data-id="' + esc(s.id) + '">✏️</button>' +
+        '<button type="button" class="wo-btn wo-btn-ghost wo-sch-del" data-id="' + esc(s.id) + '">🗑</button>' +
+        '</div>' +
+        '</div>';
+    });
+    html += '</div>' +
+      '<div class="wo-btn-row" style="margin-top:10px;">' +
+      '<button type="button" class="wo-btn" id="woCreateSchedule2">+ Nuova scheda</button>' +
+      '</div></div>';
+    return html;
+  }
+
+  function bindSchedulesList(el) {
+    el.querySelectorAll('.wo-sch-use:not([disabled])').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        (data.schedules || []).forEach(function (s) { s.attiva = s.id === id; });
+        state.session = null;
+        state.expandedEx = null;
+        save().then(function () {
+          showToast('Scheda attivata', 'success');
+          render();
+        });
+      });
+    });
+    el.querySelectorAll('.wo-sch-edit').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        var sch = (data.schedules || []).find(function (s) { return s.id === id; });
+        if (sch) openScheduleModal(sch);
+      });
+    });
+    el.querySelectorAll('.wo-sch-del').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-id');
+        if (!confirm('Eliminare questa scheda?')) return;
+        data.schedules = (data.schedules || []).filter(function (s) { return s.id !== id; });
+        if (state.session && state.session.scheduleId === id) state.session = null;
+        save().then(render);
+      });
+    });
+    var add = el.querySelector('#woCreateSchedule2');
+    if (add) add.addEventListener('click', function () { openScheduleModal(null); });
+  }
+
   // ---------- TAB OGGI ----------
   function renderOggi(el) {
     var sch = activeSchedule();
     var html = '';
 
+    html += renderSchedulesList();
+
     if (!sch) {
       html +=
         '<div class="wo-card wo-empty">' +
-        '<p>Nessuna scheda attiva per oggi.</p>' +
+        '<p>Nessuna scheda attiva. Creane una o attivane una dalla lista.</p>' +
         '<div class="wo-empty-actions">' +
         '<button type="button" class="wo-btn wo-btn-primary" id="woCreateSchedule">Crea scheda manuale</button>' +
         '<button type="button" class="wo-btn" id="woAiSuggest"' + (aiLoading ? ' disabled' : '') + '>' +
@@ -292,6 +358,7 @@
 
     el.innerHTML = html;
 
+    bindSchedulesList(el);
     var createBtn = el.querySelector('#woCreateSchedule');
     if (createBtn) createBtn.addEventListener('click', function () { openScheduleModal(null); });
     var aiBtn = el.querySelector('#woAiSuggest');
@@ -1180,6 +1247,130 @@
     }
   }
 
+  // ---------- Chat laterale semplice ----------
+  var chatEl = null;
+  var chatSending = false;
+
+  function ensureChatDom() {
+    if (chatEl && document.body.contains(chatEl)) return chatEl;
+    chatEl = document.createElement('div');
+    chatEl.id = 'woChat';
+    chatEl.className = 'wo-chat';
+    chatEl.innerHTML =
+      '<div class="wo-chat-header">' +
+      '<div><strong>Coach IA</strong><span class="wo-chat-sub">Domande libere</span></div>' +
+      '<button type="button" class="wo-chat-close" id="woChatClose">×</button>' +
+      '</div>' +
+      '<div class="wo-chat-messages" id="woChatMessages"></div>' +
+      '<div class="wo-chat-input-row">' +
+      '<textarea id="woChatInput" rows="1" placeholder="Scrivi una domanda…"></textarea>' +
+      '<button type="button" class="wo-chat-send" id="woChatSend">➤</button>' +
+      '</div>';
+    document.body.appendChild(chatEl);
+    chatEl.querySelector('#woChatClose').addEventListener('click', closeChat);
+    chatEl.querySelector('#woChatSend').addEventListener('click', function () {
+      sendChatMessage((document.getElementById('woChatInput') || {}).value);
+    });
+    chatEl.querySelector('#woChatInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChatMessage(e.target.value);
+      }
+    });
+    return chatEl;
+  }
+
+  function renderChatMessages() {
+    var box = document.getElementById('woChatMessages');
+    if (!box) return;
+    var list = data.conversations || [];
+    var html = '';
+    if (!list.length) {
+      html = '<div class="wo-chat-msg bot"><div class="wo-chat-bubble">Ciao! Sono il coach. Chiedimi pure su allenamento, tecnica o recupero.</div></div>';
+    } else {
+      list.forEach(function (m) {
+        var role = m.role === 'user' ? 'user' : 'bot';
+        html += '<div class="wo-chat-msg ' + role + '"><div class="wo-chat-bubble">' +
+          esc(m.text || '').replace(/\n/g, '<br>') + '</div></div>';
+      });
+    }
+    if (chatSending) {
+      html += '<div class="wo-chat-msg bot"><div class="wo-chat-bubble wo-chat-typing">…</div></div>';
+    }
+    box.innerHTML = html;
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function openChat() {
+    ensureChatDom();
+    chatEl.classList.add('open');
+    renderChatMessages();
+    var input = document.getElementById('woChatInput');
+    if (input) setTimeout(function () { input.focus(); }, 200);
+  }
+
+  function closeChat() {
+    if (chatEl) chatEl.classList.remove('open');
+  }
+
+  function sendChatMessage(text) {
+    text = (text || '').trim();
+    if (!text || chatSending) return;
+    if (!canCallAi()) return;
+
+    data.conversations = data.conversations || [];
+    data.conversations.push({ role: 'user', text: text, timestamp: new Date().toISOString() });
+    // tieni ultimi 40 messaggi
+    if (data.conversations.length > 40) {
+      data.conversations = data.conversations.slice(-40);
+    }
+
+    var input = document.getElementById('woChatInput');
+    if (input) input.value = '';
+    chatSending = true;
+    renderChatMessages();
+    save();
+
+    var msgs = [
+      {
+        role: 'system',
+        content: 'Sei un personal trainer amichevole. Rispondi in italiano, in modo chiaro e breve. ' +
+          'Rispondi solo alle domande dell\'utente su fitness, allenamento, recupero, alimentazione legata allo sport. ' +
+          'Non inventare schede strutturate a meno che non te le chieda esplicitamente.'
+      }
+    ];
+    var p = data.profile || {};
+    msgs.push({
+      role: 'system',
+      content: 'Profilo utente: obiettivo=' + (p.obiettivo || 'n/d') +
+        ', livello=' + (p.livello || 'n/d') +
+        ', attrezzatura=' + (p.attrezzatura || 'n/d') + '.'
+    });
+    (data.conversations || []).slice(-12).forEach(function (m) {
+      msgs.push({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text });
+    });
+
+    callGroq(msgs).then(function (reply) {
+      data.conversations.push({
+        role: 'assistant',
+        text: reply || 'Non sono riuscito a rispondere.',
+        timestamp: new Date().toISOString()
+      });
+      return save();
+    }).catch(function (err) {
+      console.error('Chat Groq:', err);
+      var msg = (err && err.message === 'RATE_LIMIT')
+        ? 'Limite API raggiunto, riprova tra poco.'
+        : 'Errore di connessione. Controlla la API key.';
+      data.conversations.push({ role: 'assistant', text: msg, timestamp: new Date().toISOString() });
+      showToast('Coach non disponibile', 'error');
+      return save();
+    }).then(function () {
+      chatSending = false;
+      renderChatMessages();
+    });
+  }
+
   // ---------- Firebase ----------
   function startForUser(uid) {
     stop();
@@ -1192,6 +1383,7 @@
         if (!Array.isArray(data.schedules)) data.schedules = [];
         if (!Array.isArray(data.workoutLogs)) data.workoutLogs = [];
         if (!Array.isArray(data.exercises)) data.exercises = [];
+        if (!Array.isArray(data.conversations)) data.conversations = [];
       } else {
         data = defaultData();
         docRef.set(data).catch(function (err) { console.error(err); });
