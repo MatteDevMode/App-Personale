@@ -16,6 +16,15 @@
   const MONTHS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
   const DOW = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
+  const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+  // llama-3.3-70b-versatile è solo Enterprise; free/dev usa gpt-oss-120b
+  const GROQ_MODEL = 'openai/gpt-oss-120b';
+  const AI_RATE_MS = 3000;
+  let lastAiCallAt = 0;
+  let aiLoading = false;
+  let pendingSuggestion = null; // { text, scheda }
+  let lastCoachMessage = '';
+
   function defaultData() {
     return {
       profile: {
@@ -46,6 +55,13 @@
     session: null, // in-progress log for active schedule
     progressExerciseId: null
   };
+
+  function getGroqKey() {
+    try { return localStorage.getItem('app-personale-groq-key') || ''; } catch (e) { return ''; }
+  }
+  function setGroqKey(k) {
+    try { localStorage.setItem('app-personale-groq-key', k || ''); } catch (e) { }
+  }
 
   function save() {
     if (!docRef) return Promise.resolve();
@@ -206,7 +222,9 @@
         '<p>Nessuna scheda attiva per oggi.</p>' +
         '<div class="wo-empty-actions">' +
         '<button type="button" class="wo-btn wo-btn-primary" id="woCreateSchedule">Crea scheda manuale</button>' +
-        '<button type="button" class="wo-btn" id="woAiSuggest" disabled title="Prossimamente">Chiedi suggerimento IA</button>' +
+        '<button type="button" class="wo-btn" id="woAiSuggest"' + (aiLoading ? ' disabled' : '') + '>' +
+        (aiLoading ? 'Coach in corso…' : '✨ Chiedi suggerimento IA') +
+        '</button>' +
         '</div>' +
         '</div>';
     } else {
@@ -254,15 +272,22 @@
         '<div class="wo-btn-row">' +
         '<button type="button" class="wo-btn wo-btn-primary" id="woSaveWorkout">💾 Salva allenamento</button>' +
         '<button type="button" class="wo-btn" id="woEditSchedule">✏️ Modifica scheda</button>' +
+        '<button type="button" class="wo-btn" id="woAiSuggest"' + (aiLoading ? ' disabled' : '') + '>' +
+        (aiLoading ? 'Coach in corso…' : '✨ Nuovo suggerimento IA') +
+        '</button>' +
         '<button type="button" class="wo-btn wo-btn-ghost" id="woDeactivate">Disattiva</button>' +
         '</div>' +
         '</div>';
     }
 
+    if (pendingSuggestion) {
+      html += renderSuggestionCard(pendingSuggestion);
+    }
+
     html +=
       '<div class="wo-coach">' +
       '<div class="wo-coach-label">Coach IA</div>' +
-      '<p class="wo-coach-text">' + coachTip() + '</p>' +
+      '<p class="wo-coach-text">' + esc(lastCoachMessage || coachTip()) + '</p>' +
       '</div>';
 
     el.innerHTML = html;
@@ -270,9 +295,8 @@
     var createBtn = el.querySelector('#woCreateSchedule');
     if (createBtn) createBtn.addEventListener('click', function () { openScheduleModal(null); });
     var aiBtn = el.querySelector('#woAiSuggest');
-    if (aiBtn) aiBtn.addEventListener('click', function () {
-      showToast('Coach IA in arrivo al prossimo passo', 'info');
-    });
+    if (aiBtn) aiBtn.addEventListener('click', requestAiSuggestion);
+    bindSuggestionActions(el);
 
     el.querySelectorAll('.wo-ex-row').forEach(function (row) {
       row.addEventListener('click', function (e) {
@@ -332,17 +356,339 @@
   }
 
   function coachTip() {
+    if (data.aiCache && data.aiCache.ultimoSuggerimento) {
+      return data.aiCache.ultimoSuggerimento;
+    }
     var logs = (data.workoutLogs || []).slice().sort(function (a, b) {
       return (b.date || '').localeCompare(a.date || '');
     });
     if (!logs.length) {
-      return 'Registra il primo allenamento: poi qui vedrai suggerimenti basati sui tuoi progressi.';
+      return 'Registra il primo allenamento oppure chiedi un suggerimento IA per partire.';
     }
     var last = logs[0];
     var n = (last.esercizi || []).length;
     return 'Ultimo allenamento il ' + formatDateLabel(last.date) +
-      (last.nome || last.scheduleName ? ' · ' + (last.nome || last.scheduleName) : '') +
+      (last.nome ? ' · ' + last.nome : '') +
       ' · ' + n + ' esercizi. Continua così 💪';
+  }
+
+  function renderSuggestionCard(sug) {
+    var html =
+      '<div class="wo-suggest-card">' +
+      '<div class="wo-coach-label">Suggerimento IA</div>' +
+      '<div class="wo-suggest-text">' + formatAiText(sug.text) + '</div>';
+    if (sug.scheda && sug.scheda.esercizi && sug.scheda.esercizi.length) {
+      html +=
+        '<ul class="wo-suggest-list">' +
+        sug.scheda.esercizi.map(function (e) {
+          return '<li><strong>' + esc(e.nome) + '</strong> · ' +
+            esc(String(e.serieTarget || '?')) + '×' + esc(String(e.ripTarget || '?')) +
+            (e.pesoTarget ? ' · ' + esc(String(e.pesoTarget)) + 'kg' : '') +
+            (e.riposoSec ? ' · riposo ' + esc(String(e.riposoSec)) + 's' : '') +
+            '</li>';
+        }).join('') +
+        '</ul>' +
+        '<div class="wo-btn-row">' +
+        '<button type="button" class="wo-btn wo-btn-primary" id="woUseSuggestion">Usa come scheda oggi</button>' +
+        '<button type="button" class="wo-btn wo-btn-ghost" id="woDismissSuggestion">Nascondi</button>' +
+        '</div>';
+    } else {
+      html += '<div class="wo-btn-row"><button type="button" class="wo-btn wo-btn-ghost" id="woDismissSuggestion">Nascondi</button></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function formatAiText(text) {
+    var t = String(text || '').replace(/---SCHEDA---[\s\S]*?---FINE---/gi, '').trim();
+    return esc(t).replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  }
+
+  function bindSuggestionActions(el) {
+    var use = el.querySelector('#woUseSuggestion');
+    var dismiss = el.querySelector('#woDismissSuggestion');
+    if (dismiss) dismiss.addEventListener('click', function () {
+      pendingSuggestion = null;
+      render();
+    });
+    if (use) use.addEventListener('click', function () {
+      if (!pendingSuggestion || !pendingSuggestion.scheda) return;
+      applySuggestionAsSchedule(pendingSuggestion.scheda);
+    });
+  }
+
+  function applySuggestionAsSchedule(scheda) {
+    var draft = {
+      id: uid('sch'),
+      nome: scheda.tipo || 'Scheda IA',
+      attiva: true,
+      createdAt: new Date().toISOString(),
+      esercizi: (scheda.esercizi || []).map(function (e) {
+        var linked = ensureExercise(e.nome);
+        return {
+          exerciseId: linked.id,
+          nome: linked.nome,
+          serieTarget: e.serieTarget != null ? Number(e.serieTarget) : null,
+          ripTarget: e.ripTarget != null ? Number(e.ripTarget) : null,
+          riposoSec: e.riposoSec != null ? Number(e.riposoSec) : null,
+          pesoTarget: e.pesoTarget != null && e.pesoTarget !== '' ? Number(e.pesoTarget) : null
+        };
+      })
+    };
+    data.schedules = data.schedules || [];
+    data.schedules.forEach(function (s) { s.attiva = false; });
+    data.schedules.push(draft);
+    state.session = null;
+    pendingSuggestion = null;
+    lastCoachMessage = 'Scheda «' + draft.nome + '» attivata dal coach. Forza! 💪';
+    data.aiCache = data.aiCache || {};
+    data.aiCache.ultimoSuggerimento = lastCoachMessage;
+    data.aiCache.timestamp = new Date().toISOString();
+    save().then(function () {
+      showToast('Scheda attivata', 'success');
+      state.tab = 'oggi';
+      render();
+    });
+  }
+
+  function parseSchedaBlock(text) {
+    if (!text) return null;
+    var m = String(text).match(/---SCHEDA---([\s\S]*?)---FINE---/i);
+    if (!m) return null;
+    var lines = m[1].trim().split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+    var tipo = 'Allenamento';
+    var esercizi = [];
+    lines.forEach(function (line) {
+      var tm = line.match(/^tipo\s*:\s*(.+)$/i);
+      if (tm) { tipo = tm[1].trim(); return; }
+      var parts = line.split('|').map(function (p) { return p.trim(); });
+      if (parts.length >= 2 && parts[0]) {
+        esercizi.push({
+          nome: parts[0],
+          serieTarget: parts[1] || '',
+          ripTarget: parts[2] || '',
+          riposoSec: parts[3] || '',
+          pesoTarget: parts[4] || '',
+          note: parts[5] || ''
+        });
+      }
+    });
+    if (!esercizi.length) return null;
+    return { tipo: tipo, esercizi: esercizi };
+  }
+
+  function logsLastDays(n) {
+    var cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - (n - 1));
+    var cutStr = cutoff.getFullYear() + '-' + String(cutoff.getMonth() + 1).padStart(2, '0') + '-' + String(cutoff.getDate()).padStart(2, '0');
+    return (data.workoutLogs || [])
+      .filter(function (l) { return (l.date || '') >= cutStr; })
+      .sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+  }
+
+  function buildContextSummary() {
+    var p = data.profile || {};
+    var lines = [];
+    lines.push('Profilo: obiettivo=' + (p.obiettivo || 'n/d') +
+      ', livello=' + (p.livello || 'n/d') +
+      ', attrezzatura=' + (p.attrezzatura || 'n/d') +
+      ', giorni/settimana=' + (p.giorniDisponibili != null ? p.giorniDisponibili : 'n/d'));
+    var recent = logsLastDays(7);
+    if (!recent.length) {
+      lines.push('Nessun allenamento negli ultimi 7 giorni.');
+    } else {
+      lines.push('Allenamenti ultimi 7 giorni:');
+      recent.forEach(function (log) {
+        var parts = (log.esercizi || []).map(function (ex) {
+          var maxW = 0;
+          var sets = (ex.serie || []).map(function (s) {
+            if (s.peso != null && Number(s.peso) > maxW) maxW = Number(s.peso);
+            return (s.ripetizioni != null ? s.ripetizioni : '?') + (s.peso != null ? '@' + s.peso + 'kg' : '');
+          }).join(', ');
+          return ex.nome + ' [' + sets + ']';
+        });
+        lines.push('- ' + log.date + ' ' + (log.nome || '') + ': ' + parts.join('; '));
+      });
+    }
+    var known = (data.exercises || []).map(function (e) { return e.nome; }).slice(0, 30);
+    if (known.length) lines.push('Esercizi noti: ' + known.join(', '));
+    return lines.join('\n');
+  }
+
+  function canCallAi() {
+    var now = Date.now();
+    if (now - lastAiCallAt < AI_RATE_MS) {
+      showToast('Aspetta un attimo prima di una nuova richiesta', 'info');
+      return false;
+    }
+    if (!getGroqKey()) {
+      showToast('Imposta la API key Groq nel profilo ⚙️', 'error');
+      openProfileModal();
+      return false;
+    }
+    return true;
+  }
+
+  function callGroq(messages) {
+    lastAiCallAt = Date.now();
+    return fetch(GROQ_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + getGroqKey()
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: messages,
+        temperature: 0.6,
+        max_tokens: 2048
+      })
+    }).then(function (res) {
+      if (res.status === 429) {
+        var err = new Error('RATE_LIMIT');
+        throw err;
+      }
+      if (!res.ok) {
+        return res.json().catch(function () { return {}; }).then(function (body) {
+          throw new Error((body && body.error && body.error.message) || ('HTTP ' + res.status));
+        });
+      }
+      return res.json();
+    }).then(function (data) {
+      return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+    });
+  }
+
+  function requestAiSuggestion() {
+    if (aiLoading || !canCallAi()) return;
+    aiLoading = true;
+    render();
+
+    var system =
+      'Sei un personal trainer esperto. Rispondi in italiano, tono motivante e conciso. ' +
+      'Suggerisci UNA scheda di allenamento per OGGI (6-8 esercizi max), tenendo conto di recupero muscolare e progressione. ' +
+      'Alla FINE del messaggio includi SEMPRE questo blocco:\n' +
+      '---SCHEDA---\n' +
+      'tipo: Nome sessione\n' +
+      'Nome esercizio | serie | ripetizioni | riposo_sec | peso_consigliato_kg\n' +
+      '---FINE---\n' +
+      'Una riga per esercizio. Non omettere il blocco.';
+
+    callGroq([
+      { role: 'system', content: system },
+      { role: 'user', content: 'Contesto atleta:\n' + buildContextSummary() + '\n\nSuggerisci la scheda di oggi.' }
+    ]).then(function (reply) {
+      var scheda = parseSchedaBlock(reply);
+      pendingSuggestion = { text: reply, scheda: scheda };
+      lastCoachMessage = scheda
+        ? ('Ho preparato «' + (scheda.tipo || 'Scheda') + '» con ' + scheda.esercizi.length + ' esercizi. Puoi attivarla qui sotto.')
+        : 'Ho un consiglio per te (scheda non strutturata). Leggi il testo del suggerimento.';
+      data.aiCache = data.aiCache || {};
+      data.aiCache.ultimoSuggerimento = lastCoachMessage;
+      data.aiCache.timestamp = new Date().toISOString();
+      return save();
+    }).catch(function (err) {
+      console.error('Groq suggest:', err);
+      if (err && err.message === 'RATE_LIMIT') {
+        showToast('Limite API raggiunto, riprova tra poco', 'error');
+        lastCoachMessage = 'Coach IA in pausa (limite API). Riprova tra qualche minuto.';
+      } else {
+        showToast('Coach IA non disponibile, riprova più tardi', 'error');
+        lastCoachMessage = 'Coach IA non disponibile: ' + (err && err.message ? err.message : 'errore');
+      }
+    }).then(function () {
+      aiLoading = false;
+      render();
+    });
+  }
+
+  function localProgressInsight(esercizi) {
+    var tips = [];
+    esercizi.forEach(function (ex) {
+      var name = ex.nome;
+      if (!name) return;
+      var maxToday = 0;
+      (ex.serie || []).forEach(function (s) {
+        var w = Number(s.peso);
+        if (!isNaN(w) && w > maxToday) maxToday = w;
+      });
+      if (!maxToday) return;
+      // cerca log precedenti stesso esercizio
+      var prevMax = 0;
+      var prevDate = '';
+      (data.workoutLogs || []).forEach(function (log) {
+        if (log.date === todayStr()) return;
+        (log.esercizi || []).forEach(function (e) {
+          if ((e.nome || '') !== name) return;
+          (e.serie || []).forEach(function (s) {
+            var w = Number(s.peso);
+            if (!isNaN(w) && w > prevMax) {
+              prevMax = w;
+              prevDate = log.date;
+            }
+          });
+        });
+      });
+      if (prevMax > 0 && maxToday > prevMax) {
+        var delta = Math.round((maxToday - prevMax) * 10) / 10;
+        tips.push(name + ': +' + delta + 'kg rispetto al max precedente (' + prevMax + 'kg' + (prevDate ? ' il ' + prevDate : '') + ')');
+      } else if (prevMax > 0 && maxToday === prevMax) {
+        tips.push(name + ': hai eguagliato il record di ' + prevMax + 'kg');
+      }
+    });
+    if (!tips.length) return 'Allenamento registrato. Continua con costanza: la progressione arriverà.';
+    return tips.slice(0, 3).join('. ') + '. Ottimo lavoro! 💪';
+  }
+
+  function requestPostWorkoutAnalysis(logEntry) {
+    // insight locale immediato
+    lastCoachMessage = localProgressInsight(logEntry.esercizi || []);
+    data.aiCache = data.aiCache || {};
+    data.aiCache.ultimoSuggerimento = lastCoachMessage;
+    data.aiCache.timestamp = new Date().toISOString();
+
+    if (!getGroqKey()) {
+      save().then(render);
+      return;
+    }
+    if (Date.now() - lastAiCallAt < AI_RATE_MS) {
+      save().then(render);
+      return;
+    }
+
+    var summary = (logEntry.esercizi || []).map(function (ex) {
+      var sets = (ex.serie || []).map(function (s) {
+        return (s.ripetizioni != null ? s.ripetizioni : '?') + (s.peso != null ? '@' + s.peso : '');
+      }).join(', ');
+      return ex.nome + ': ' + sets;
+    }).join('\n');
+
+    callGroq([
+      {
+        role: 'system',
+        content: 'Sei un personal trainer. In italiano, 2-3 frasi max: commenta l\'allenamento appena finito, cita progressioni di peso se ci sono, dai un consiglio concreto per la prossima sessione. Niente elenchi lunghi.'
+      },
+      {
+        role: 'user',
+        content: 'Profilo: ' + JSON.stringify(data.profile || {}) +
+          '\nStorico recente:\n' + buildContextSummary() +
+          '\n\nAllenamento appena salvato (' + logEntry.date + ' – ' + (logEntry.nome || '') + '):\n' + summary
+      }
+    ]).then(function (reply) {
+      var msg = String(reply || '').trim();
+      if (msg) {
+        lastCoachMessage = msg;
+        data.aiCache.ultimoSuggerimento = msg;
+        data.aiCache.timestamp = new Date().toISOString();
+        return save();
+      }
+    }).catch(function (err) {
+      console.error('Groq analysis:', err);
+      // mantieni insight locale
+    }).then(function () {
+      render();
+    });
   }
 
   function saveCurrentWorkout() {
@@ -369,8 +715,7 @@
       return;
     }
 
-    data.workoutLogs = data.workoutLogs || [];
-    data.workoutLogs.push({
+    var logEntry = {
       id: uid('wl'),
       date: todayStr(),
       scheduleId: state.session.scheduleId || null,
@@ -379,16 +724,16 @@
       sensazioni: null,
       esercizi: esercizi,
       createdAt: new Date().toISOString()
-    });
+    };
 
-    // reset done flags
-    state.session.esercizi.forEach(function (ex) {
-      ex.done = true;
-    });
+    data.workoutLogs = data.workoutLogs || [];
+    data.workoutLogs.push(logEntry);
+
+    state.session.esercizi.forEach(function (ex) { ex.done = true; });
 
     save().then(function () {
       showToast('Allenamento salvato! 💪', 'success');
-      render();
+      requestPostWorkoutAnalysis(logEntry);
     });
   }
 
@@ -833,13 +1178,6 @@
       modalEl.remove();
       modalEl = null;
     }
-  }
-
-  function getGroqKey() {
-    try { return localStorage.getItem('app-personale-groq-key') || ''; } catch (e) { return ''; }
-  }
-  function setGroqKey(k) {
-    try { localStorage.setItem('app-personale-groq-key', k || ''); } catch (e) { }
   }
 
   // ---------- Firebase ----------
