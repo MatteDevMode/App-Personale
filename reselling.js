@@ -66,6 +66,35 @@
         catch (e) { return { titolo: '', descrizione: String(text || '').trim() }; }
     }
 
+    async function analyzePhotosWithAI(photos) {
+        const { aiMod, ai } = await getAI();
+        const prompt =
+            'Analizza le foto di un oggetto da rivendere su Vinted Italia. ' +
+            'Rispondi SOLO con JSON valido: {"name":"nome breve oggetto","brand":"marca o stringa vuota","category":"una tra Abbigliamento|Scarpe|Accessori|Elettronica|Casa|Giochi e collezionismo|Altro","size":"taglia se visibile altrimenti vuoto","condition":"una tra Nuovo con cartellino|Nuovo senza cartellino|Ottime condizioni|Buone condizioni|Condizioni soddisfacenti","suggestedListPrice":numero_euro_suggerito_o_null,"notes":"difetti o dettagli utili"}. ' +
+            'Non inventare marca o taglia se non leggibili. Prezzo realistico mercato secondario IT.';
+        const parts = [prompt].concat(photos.map(p => ({ inlineData: { mimeType: 'image/jpeg', data: p.b64 || (p.dataUrl || '').split(',')[1] } })).filter(p => p.inlineData.data));
+        let lastErr;
+        for (const name of MODELS) {
+            try {
+                const model = aiMod.getGenerativeModel(ai, { model: name, generationConfig: { responseMimeType: 'application/json' } });
+                const result = await model.generateContent(parts);
+                const text = result.response.text();
+                const clean = String(text || '').replace(/^\s*```(?:json)?/i, '').replace(/```\s*$/, '').trim();
+                const o = JSON.parse(clean);
+                return {
+                    name: String(o.name || '').trim(),
+                    brand: String(o.brand || '').trim(),
+                    category: String(o.category || '').trim(),
+                    size: String(o.size || '').trim(),
+                    condition: String(o.condition || '').trim(),
+                    suggestedListPrice: (o.suggestedListPrice == null || o.suggestedListPrice === '') ? null : Number(o.suggestedListPrice),
+                    notes: String(o.notes || '').trim()
+                };
+            } catch (e) { lastErr = e; }
+        }
+        throw lastErr || new Error('Analisi AI non riuscita');
+    }
+
     async function generateWithAI(fields, photos) {
         const { aiMod, ai } = await getAI();
         const parts = [buildPrompt(fields, photos.length)].concat(photos.map(p => ({ inlineData: { mimeType: 'image/jpeg', data: p.b64 } })));
@@ -164,6 +193,19 @@
             '.rs-vcard-actions button:hover{border-color:#3FCFA0;color:#3FCFA0;}' +
             '.rs-vcard-actions button.primary:hover{filter:brightness(1.05);color:#0D1017;}' +
             '.rs-see-all{border:none;background:transparent;color:#3FCFA0;font-size:12.5px;cursor:pointer;padding:4px 0;font-family:var(--font-body);}' +
+            '.rs-tab-badge{display:inline-block;min-width:18px;padding:1px 6px;margin-left:4px;border-radius:999px;background:#E8604C;color:#fff;font-size:10px;font-weight:700;vertical-align:middle;}' +
+            '.rs-vcard-wrap{position:relative;overflow:hidden;border-radius:14px;}' +
+            '.rs-swipe-bg{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:13px;font-weight:600;pointer-events:none;}' +
+            '.rs-swipe-bg .ok{color:#3FCFA0;}' +
+            '.rs-swipe-bg .ko{color:#E8604C;}' +
+            '.rs-vcard-wrap .rs-vcard{position:relative;z-index:1;transition:transform .12s ease;touch-action:pan-y;}' +
+            '.rs-ctx{position:fixed;z-index:4000;background:var(--bg-sidebar);border:1px solid var(--border);border-radius:12px;min-width:160px;box-shadow:0 12px 40px rgba(0,0,0,.4);padding:6px;}' +
+            '.rs-ctx button{display:block;width:100%;text-align:left;border:none;background:transparent;color:var(--text-primary);padding:10px 12px;border-radius:8px;font-size:13px;cursor:pointer;font-family:var(--font-body);}' +
+            '.rs-ctx button:hover{background:var(--bg-card-hover);}' +
+            '.rs-ctx button.danger{color:#E8604C;}' +
+            '.rs-quick-ph{aspect-ratio:1;max-height:220px;border-radius:12px;overflow:hidden;background:var(--bg-page);border:1px dashed var(--border-strong);display:flex;align-items:center;justify-content:center;margin-bottom:12px;cursor:pointer;}' +
+            '.rs-quick-ph img{width:100%;height:100%;object-fit:cover;}' +
+            '.fin-bottom-bar{display:flex;gap:8px;}' +
             '@media(max-width:720px){#page-reselling{padding-bottom:96px;}.rs-row3{grid-template-columns:1fr 1fr;}.rs-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}';
         document.head.appendChild(s);
     }
@@ -275,26 +317,41 @@
     }
 
     // ---------- Shell ----------
+    function todoBadgeCount() {
+        const pub = data.items.filter(i => i.status === 'da-pubblicare').length;
+        const stale = data.items.filter(i => isStale(i)).length;
+        return pub + stale;
+    }
+
     function renderShell() {
         const page = document.getElementById('page-reselling');
+        const badgeN = todoBadgeCount();
+        const badge = badgeN ? '<span class="rs-tab-badge">' + badgeN + '</span>' : '';
         page.innerHTML =
             '<div class="todo-top"><div><p class="eyebrow">Assistente vendita</p><h1 style="margin:0;">Reselling</h1></div></div>' +
             '<div class="rs-tabs">' +
-            '<button type="button" class="rs-tab" data-view="todo" id="rsViewTodo">📋 Da fare</button>' +
+            '<button type="button" class="rs-tab" data-view="todo" id="rsViewTodo">📋 Da fare' + badge + '</button>' +
             '<button type="button" class="rs-tab" data-view="items" id="rsViewItems">📦 Tutti</button>' +
             '<button type="button" class="rs-tab" data-view="stats" id="rsViewStats">📊 Stats</button>' +
             '</div>' +
             '<div id="resellingContent"></div>' +
-            '<div class="fin-bottom-bar"><button class="fin-new-btn" id="rsNewBtn">+ Nuovo oggetto</button></div>';
+            '<div class="fin-bottom-bar">' +
+            '<button class="fin-new-btn" id="rsQuickBtn" style="flex:1;">⚡ Aggiunta rapida</button>' +
+            '<button class="fin-new-btn" id="rsNewBtn" style="flex:1;background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border);">+ Completo</button>' +
+            '</div>';
         page.querySelectorAll('.rs-tab').forEach(btn => {
             btn.onclick = () => { state.view = btn.getAttribute('data-view'); renderContent(); };
         });
         document.getElementById('rsNewBtn').onclick = () => openItemModal(null);
+        document.getElementById('rsQuickBtn').onclick = () => openQuickAddModal();
     }
 
     function renderContent() {
         if (!document.getElementById('rsViewTodo')) return;
-        document.getElementById('rsViewTodo').classList.toggle('active', state.view === 'todo');
+        const todoBtn = document.getElementById('rsViewTodo');
+        const badgeN = todoBadgeCount();
+        todoBtn.innerHTML = '📋 Da fare' + (badgeN ? '<span class="rs-tab-badge">' + badgeN + '</span>' : '');
+        todoBtn.classList.toggle('active', state.view === 'todo');
         document.getElementById('rsViewItems').classList.toggle('active', state.view === 'items');
         document.getElementById('rsViewStats').classList.toggle('active', state.view === 'stats');
         const c = document.getElementById('resellingContent');
@@ -339,7 +396,12 @@
             actions = '<div class="rs-vcard-actions"><button type="button" class="rs-act" data-act="open" data-id="' + i.id + '">Dettagli</button></div>';
         }
 
-        return '<div class="rs-vcard" data-id="' + i.id + '">' +
+        const swipeHint = (i.status === 'da-pubblicare' || i.status === 'in-vendita')
+            ? '<div class="rs-swipe-bg"><span class="ok">→ Pubblica</span><span class="ko">Elimina ←</span></div>'
+            : '';
+
+        return '<div class="rs-vcard-wrap" data-id="' + i.id + '">' + swipeHint +
+            '<div class="rs-vcard" data-id="' + i.id + '">' +
             '<div class="rs-vcard-ph">' +
             (ph ? '<img src="' + attr(ph) + '" alt="" loading="lazy" />' : '<div class="rs-ph-empty">📷</div>') +
             '<span class="rs-vcard-badge" style="background:' + st.color + ';">' + esc(st.label) + '</span>' +
@@ -348,16 +410,112 @@
             '<div class="rs-vcard-name">' + esc(i.name || 'Senza nome') + '</div>' +
             '<div class="rs-vcard-meta">' + esc(meta) + '</div>' +
             '</div>' + actions +
-            '</div>';
+            '</div></div>';
+    }
+
+    function closeCtxMenu() {
+        const m = document.getElementById('rsCtx');
+        if (m) m.remove();
+    }
+
+    function openCtxMenu(item, x, y) {
+        closeCtxMenu();
+        const menu = document.createElement('div');
+        menu.id = 'rsCtx';
+        menu.className = 'rs-ctx';
+        menu.style.left = Math.min(x, window.innerWidth - 180) + 'px';
+        menu.style.top = Math.min(y, window.innerHeight - 200) + 'px';
+        let html = '<button type="button" data-a="edit">Modifica</button>';
+        if (item.status === 'da-pubblicare') html += '<button type="button" data-a="publish">Segna pubblicato</button>';
+        if (item.status === 'in-vendita') html += '<button type="button" data-a="sell">Segna venduto</button>';
+        html += '<button type="button" data-a="dup">Duplica</button>';
+        if (item.status !== 'archiviato') html += '<button type="button" data-a="arch">Archivia</button>';
+        html += '<button type="button" class="danger" data-a="del">Elimina</button>';
+        menu.innerHTML = html;
+        document.body.appendChild(menu);
+        menu.querySelectorAll('button').forEach(b => {
+            b.onclick = async () => {
+                const a = b.getAttribute('data-a');
+                closeCtxMenu();
+                if (a === 'edit') openItemModal(item);
+                else if (a === 'publish') {
+                    const copy = Object.assign({}, item, { status: 'in-vendita', listDate: item.listDate || todayStr() });
+                    if (await commitItem(copy)) { showToast('In vendita', 'success'); renderShell(); renderContent(); }
+                } else if (a === 'sell') openSellModal(item);
+                else if (a === 'dup') {
+                    const copy = Object.assign({}, item, {
+                        id: uid('it'), name: (item.name || '') + ' (copia)', status: 'da-pubblicare',
+                        listDate: null, soldPrice: null, soldDate: null, sellTxId: null, buyTxId: null,
+                        createdAt: new Date().toISOString()
+                    });
+                    if (await commitItem(copy)) { showToast('Duplicato', 'success'); renderShell(); renderContent(); }
+                } else if (a === 'arch') {
+                    const copy = Object.assign({}, item, { status: 'archiviato' });
+                    if (await commitItem(copy)) { showToast('Archiviato', 'success'); renderShell(); renderContent(); }
+                } else if (a === 'del') {
+                    if (!confirm('Eliminare "' + item.name + '"?')) return;
+                    if (await deleteItem(item)) { showToast('Eliminato', 'success'); renderShell(); renderContent(); }
+                }
+            };
+        });
+        setTimeout(() => {
+            const closer = e => { if (!menu.contains(e.target)) { closeCtxMenu(); document.removeEventListener('click', closer); } };
+            document.addEventListener('click', closer);
+        }, 0);
     }
 
     function bindVisualCards(root) {
         if (!root) return;
         root.querySelectorAll('.rs-vcard').forEach(card => {
+            const id = card.getAttribute('data-id');
             card.addEventListener('click', e => {
                 if (e.target.closest('.rs-act')) return;
-                const it = itemById(card.getAttribute('data-id'));
+                const it = itemById(id);
                 if (it) openItemModal(it);
+            });
+            // long press
+            let pressTimer = null;
+            const startPress = e => {
+                const pt = e.touches ? e.touches[0] : e;
+                pressTimer = setTimeout(() => {
+                    pressTimer = null;
+                    const it = itemById(id);
+                    if (it) openCtxMenu(it, pt.clientX || 40, pt.clientY || 80);
+                }, 480);
+            };
+            const cancelPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+            card.addEventListener('touchstart', startPress, { passive: true });
+            card.addEventListener('touchend', cancelPress);
+            card.addEventListener('touchmove', cancelPress);
+            card.addEventListener('mousedown', startPress);
+            card.addEventListener('mouseup', cancelPress);
+            card.addEventListener('mouseleave', cancelPress);
+
+            // swipe
+            let startX = null;
+            card.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+            card.addEventListener('touchmove', e => {
+                if (startX == null) return;
+                const dx = e.touches[0].clientX - startX;
+                card.style.transform = 'translateX(' + Math.max(-80, Math.min(80, dx)) + 'px)';
+            }, { passive: true });
+            card.addEventListener('touchend', async e => {
+                if (startX == null) return;
+                const dx = (e.changedTouches[0].clientX - startX);
+                card.style.transform = '';
+                startX = null;
+                const it = itemById(id);
+                if (!it) return;
+                if (dx > 70 && (it.status === 'da-pubblicare' || it.status === 'in-vendita')) {
+                    if (it.status === 'da-pubblicare') {
+                        const copy = Object.assign({}, it, { status: 'in-vendita', listDate: it.listDate || todayStr() });
+                        if (await commitItem(copy)) { showToast('Pubblicato', 'success'); renderShell(); renderContent(); }
+                    }
+                } else if (dx < -70) {
+                    if (confirm('Eliminare "' + it.name + '"?')) {
+                        if (await deleteItem(it)) { showToast('Eliminato', 'success'); renderShell(); renderContent(); }
+                    }
+                }
             });
         });
         root.querySelectorAll('.rs-act').forEach(btn => {
@@ -370,12 +528,20 @@
                 if (act === 'open') { openItemModal(it); return; }
                 if (act === 'publish') {
                     const copy = Object.assign({}, it, { status: 'in-vendita', listDate: it.listDate || todayStr() });
-                    if (await commitItem(copy)) { showToast('Pubblicato · in vendita', 'success'); renderContent(); }
+                    if (await commitItem(copy)) { showToast('Pubblicato · in vendita', 'success'); renderShell(); renderContent(); }
                     return;
                 }
                 if (act === 'lower') {
+                    // suggerisci -10% sul listino
+                    if (it.listPrice) {
+                        const neu = Math.round(it.listPrice * 0.9 * 100) / 100;
+                        if (confirm('Abbassare il prezzo da ' + eur(it.listPrice) + ' a ' + eur(neu) + '?')) {
+                            const copy = Object.assign({}, it, { listPrice: neu });
+                            if (await commitItem(copy)) { showToast('Prezzo aggiornato', 'success'); renderContent(); }
+                            return;
+                        }
+                    }
                     openItemModal(it);
-                    return;
                 }
             });
         });
@@ -548,6 +714,118 @@
             data: { labels: keys, datasets: [{ data: keys.map(k => round2(cat[k])), backgroundColor: keys.map(k => cat[k] >= 0 ? '#3FCFA0' : '#E8604C'), borderRadius: 4 }] },
             options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: txt }, grid: { color: grid } }, y: { ticks: { color: txt }, grid: { display: false } } } }
         });
+    }
+
+    // ---------- Aggiunta rapida (foto → AI → salva) ----------
+    function openQuickAddModal() {
+        const photos = [];
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.innerHTML =
+            '<div class="modal-box"><p class="modal-title">Aggiunta rapida</p>' +
+            '<p class="modal-sub">1) Foto · 2) Controlla i dati · 3) Salva</p>' +
+            '<div class="rs-quick-ph" id="qPh"><span style="color:var(--text-muted);font-size:14px;text-align:center;padding:12px;">Tocca per scattare o scegliere foto</span></div>' +
+            '<input type="file" id="qFile" accept="image/*" capture="environment" multiple style="display:none;" />' +
+            '<button type="button" class="btn btn-ghost" id="qAi" style="width:100%;margin-bottom:10px;" disabled>✨ Analizza con AI</button>' +
+            '<label class="field-label">Nome</label><input type="text" id="qName" placeholder="Es. Nike Air Force" />' +
+            '<div class="row-2"><div><label class="field-label">Marca</label><input type="text" id="qBrand" /></div>' +
+            '<div><label class="field-label">Categoria</label><input type="text" id="qCat" list="qCats" /></div></div>' +
+            dl('qCats', CATEGORIES) +
+            '<div class="row-2"><div><label class="field-label">Acquisto (€)</label><input type="text" inputmode="decimal" id="qBuy" placeholder="0" /></div>' +
+            '<div><label class="field-label">Vendita suggerita (€)</label><input type="text" inputmode="decimal" id="qList" /></div></div>' +
+            '<label class="field-label">Pagato con</label><select id="qAcc">' + accOptions((fin.accounts[0] || {}).id) + '</select>' +
+            '<p class="rs-hint" id="qMsg"></p>' +
+            '<div class="modal-actions"><button class="btn btn-ghost" id="qCancel">Annulla</button>' +
+            '<button class="btn btn-primary" id="qSave">Salva in Da pubblicare</button></div></div>';
+
+        const q = s => overlay.querySelector(s);
+        const drawPh = () => {
+            const box = q('#qPh');
+            if (!photos.length) {
+                box.innerHTML = '<span style="color:var(--text-muted);font-size:14px;text-align:center;padding:12px;">Tocca per scattare o scegliere foto</span>';
+            } else {
+                box.innerHTML = '<img src="' + attr(photos[0].url) + '" alt="" />';
+            }
+            q('#qAi').disabled = !photos.length;
+        };
+
+        q('#qPh').onclick = () => q('#qFile').click();
+        q('#qFile').addEventListener('change', async e => {
+            const files = Array.from(e.target.files || []);
+            for (const f of files) {
+                if (photos.length >= MAX_PHOTOS) break;
+                try {
+                    const url = await shrink(f);
+                    photos.push({ url, dataUrl: url, b64: url.split(',')[1] });
+                } catch (err) { q('#qMsg').textContent = 'Foto non valida: ' + err.message; }
+            }
+            e.target.value = '';
+            drawPh();
+        });
+
+        q('#qAi').onclick = async () => {
+            if (!photos.length) return;
+            const btn = q('#qAi');
+            btn.disabled = true; btn.textContent = 'Analisi…';
+            q('#qMsg').textContent = 'AI in corso…';
+            try {
+                const a = await analyzePhotosWithAI(photos);
+                if (a.name) q('#qName').value = a.name;
+                if (a.brand) q('#qBrand').value = a.brand;
+                if (a.category) q('#qCat').value = a.category;
+                if (a.suggestedListPrice != null && !isNaN(a.suggestedListPrice)) q('#qList').value = String(a.suggestedListPrice);
+                q('#qMsg').textContent = 'Suggerimenti AI applicati: controlla e salva.';
+            } catch (err) {
+                console.error(err);
+                q('#qMsg').textContent = 'AI non disponibile: ' + friendlyError(err) + ' Compila a mano.';
+            } finally {
+                btn.disabled = false; btn.textContent = '✨ Analizza con AI';
+            }
+        };
+
+        q('#qCancel').onclick = () => overlay.remove();
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+        q('#qSave').onclick = async () => {
+            const name = (q('#qName').value || '').trim();
+            const buy = q('#qBuy').value.trim() ? num(q('#qBuy').value) : 0;
+            if (!name) { q('#qName').style.borderColor = '#E8604C'; q('#qMsg').textContent = 'Serve almeno il nome.'; return; }
+            if (isNaN(buy) || buy < 0) { q('#qBuy').style.borderColor = '#E8604C'; return; }
+            const listRaw = q('#qList').value.trim();
+            const listPrice = listRaw ? num(listRaw) : null;
+            const item = {
+                id: uid('it'),
+                name,
+                brand: (q('#qBrand').value || '').trim(),
+                category: (q('#qCat').value || '').trim(),
+                size: '',
+                condition: 'Buone condizioni',
+                buyPrice: buy,
+                buyDate: todayStr(),
+                buyAccountId: q('#qAcc').value || null,
+                buyTxId: null,
+                photos: photos.map(p => p.dataUrl || p.url).filter(Boolean),
+                status: 'da-pubblicare',
+                listPrice: (listPrice != null && !isNaN(listPrice)) ? listPrice : null,
+                listDate: null,
+                platform: (data.settings && data.settings.defaultPlatform) || 'Vinted',
+                soldPrice: null, soldDate: null, sellAccountId: null, sellTxId: null, costs: 0,
+                notes: '', tags: [],
+                vTitle: '', vDesc: '',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            const btn = q('#qSave'); btn.disabled = true;
+            if (await commitItem(item)) {
+                overlay.remove();
+                showToast('Aggiunto in Da pubblicare', 'success');
+                state.view = 'todo';
+                renderShell();
+                renderContent();
+            } else btn.disabled = false;
+        };
+
+        document.body.appendChild(overlay);
     }
 
     // ---------- Modale oggetto ----------
