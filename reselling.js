@@ -11,14 +11,19 @@
 
     const MONTHS = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
     const STATUS = {
-        'da-pubblicare': { label: 'Da pubblicare', color: '#E0B34D' },
-        'in-vendita': { label: 'In vendita', color: '#6C8CF5' },
-        'venduto': { label: 'Venduto', color: '#3FCFA0' }
+        'da-pubblicare': { label: 'Da pubblicare', color: '#E8604C' },
+        'in-vendita': { label: 'In vendita', color: '#3FCFA0' },
+        'venduto': { label: 'Venduto', color: '#6C8CF5' },
+        'archiviato': { label: 'Archiviato', color: '#8B93A7' }
     };
     const CONDITIONS = ['Nuovo con cartellino', 'Nuovo senza cartellino', 'Ottime condizioni', 'Buone condizioni', 'Condizioni soddisfacenti'];
     const PLATFORMS = ['Vinted', 'eBay', 'Subito', 'Depop', 'Facebook Marketplace', 'Altro'];
     const CATEGORIES = ['Abbigliamento', 'Scarpe', 'Accessori', 'Elettronica', 'Casa', 'Giochi e collezionismo', 'Altro'];
-    const STALE_DAYS = 30;
+
+    function staleDays() {
+        const n = Number((data.settings && data.settings.staleDays) || 14);
+        return isNaN(n) || n < 1 ? 14 : n;
+    }
 
     // ---------- AI (Gemini tramite Firebase AI Logic, livello gratuito) ----------
     const FIREBASE_VER = '12.19.0';
@@ -138,17 +143,38 @@
             '.rs-thumb img{width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--border);}' +
             '.rs-thumb button{position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;border:none;background:rgba(0,0,0,.65);color:#fff;cursor:pointer;font-size:12px;line-height:1;}' +
             '.rs-ai{border:1px dashed var(--border-strong);border-radius:12px;padding:12px;margin-top:14px;}' +
-            '@media(max-width:720px){#page-reselling{padding-bottom:96px;}.rs-row3{grid-template-columns:1fr 1fr;}}';
+            '.rs-tabs{display:flex;gap:4px;padding:4px;background:var(--bg-card);border:1px solid var(--border);border-radius:14px;margin-bottom:14px;}' +
+            '.rs-tab{flex:1;border:none;background:transparent;color:var(--text-muted);padding:10px 6px;border-radius:10px;font-size:13px;font-family:var(--font-body);cursor:pointer;}' +
+            '.rs-tab.active{background:rgba(63,207,160,.14);color:#3FCFA0;font-weight:600;}' +
+            '.rs-sec-title{font-size:13px;font-weight:600;margin:16px 0 10px;color:var(--text-primary);display:flex;align-items:center;gap:8px;}' +
+            '.rs-sec-title .rs-count{font-size:11px;color:var(--text-muted);font-weight:500;}' +
+            '.rs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:8px;}' +
+            '.rs-vcard{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;transition:border-color .15s;}' +
+            '.rs-vcard:hover{border-color:rgba(63,207,160,.45);}' +
+            '.rs-vcard-ph{aspect-ratio:1;background:var(--bg-page);position:relative;}' +
+            '.rs-vcard-ph img{width:100%;height:100%;object-fit:cover;display:block;}' +
+            '.rs-vcard-ph .rs-ph-empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:28px;}' +
+            '.rs-vcard-badge{position:absolute;top:8px;left:8px;font-size:10px;font-weight:600;padding:3px 7px;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;}' +
+            '.rs-vcard-body{padding:10px;display:flex;flex-direction:column;gap:4px;flex:1;}' +
+            '.rs-vcard-name{font-size:13.5px;font-weight:600;color:var(--text-primary);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}' +
+            '.rs-vcard-meta{font-size:11.5px;color:var(--text-muted);}' +
+            '.rs-vcard-actions{display:flex;gap:6px;padding:0 10px 10px;}' +
+            '.rs-vcard-actions button{flex:1;border-radius:8px;border:1px solid var(--border);background:var(--bg-page);color:var(--text-secondary);font-size:11.5px;padding:7px 6px;cursor:pointer;font-family:var(--font-body);}' +
+            '.rs-vcard-actions button.primary{background:#3FCFA0;border-color:#3FCFA0;color:#0D1017;font-weight:600;}' +
+            '.rs-vcard-actions button:hover{border-color:#3FCFA0;color:#3FCFA0;}' +
+            '.rs-vcard-actions button.primary:hover{filter:brightness(1.05);color:#0D1017;}' +
+            '.rs-see-all{border:none;background:transparent;color:#3FCFA0;font-size:12.5px;cursor:pointer;padding:4px 0;font-family:var(--font-body);}' +
+            '@media(max-width:720px){#page-reselling{padding-bottom:96px;}.rs-row3{grid-template-columns:1fr 1fr;}.rs-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}';
         document.head.appendChild(s);
     }
 
     // ---------- Dati ----------
-    function defaultData() { return { items: [], settings: { reinvestPct: 50, targetMarginPct: 30 }, migrated: false }; }
+    function defaultData() { return { items: [], settings: { reinvestPct: 50, targetMarginPct: 30, staleDays: 14, defaultPlatform: 'Vinted' }, migrated: false }; }
     let data = defaultData();
     let fin = { accounts: [], categories: [], transactions: [], items: [], settings: {} };
     let docRef = null, finRef = null, unsubs = [], loaded = { r: false, f: false }, ready = false;
     let charts = { m: null, c: null };
-    const state = { view: 'items', status: 'all', q: '', sort: 'recent', cat: '', brand: '', period: 'month' };
+    const state = { view: 'todo', status: 'all', q: '', sort: 'recent', cat: '', brand: '', period: 'month' };
 
     function saveData() {
         if (!docRef) return;
@@ -167,7 +193,14 @@
     function marginOf(i) { return i.soldPrice ? profitOf(i) / i.soldPrice * 100 : 0; }
     function startOf(i) { return i.listDate || i.buyDate || todayStr(); }
     function daysListed(i) { return daysBetween(startOf(i), i.status === 'venduto' && i.soldDate ? i.soldDate : todayStr()); }
-    function isStale(i) { return i.status === 'in-vendita' && daysListed(i) >= STALE_DAYS; }
+    function isStale(i) { return i.status === 'in-vendita' && daysListed(i) >= staleDays(); }
+    function mainPhoto(i) {
+        if (i.photos && i.photos.length) {
+            const p = i.photos[0];
+            return typeof p === 'string' ? p : (p.dataUrl || p.url || '');
+        }
+        return '';
+    }
 
     function totals() {
         const sold = data.items.filter(i => i.status === 'venduto');
@@ -245,21 +278,29 @@
     function renderShell() {
         const page = document.getElementById('page-reselling');
         page.innerHTML =
-            '<div class="todo-top"><div><p class="eyebrow">Ambito attivo</p><h1 style="margin:0;">Reselling</h1></div>' +
-            '<div class="view-switch"><button id="rsViewItems">Oggetti</button><button id="rsViewStats">Statistiche</button></div></div>' +
+            '<div class="todo-top"><div><p class="eyebrow">Assistente vendita</p><h1 style="margin:0;">Reselling</h1></div></div>' +
+            '<div class="rs-tabs">' +
+            '<button type="button" class="rs-tab" data-view="todo" id="rsViewTodo">📋 Da fare</button>' +
+            '<button type="button" class="rs-tab" data-view="items" id="rsViewItems">📦 Tutti</button>' +
+            '<button type="button" class="rs-tab" data-view="stats" id="rsViewStats">📊 Stats</button>' +
+            '</div>' +
             '<div id="resellingContent"></div>' +
             '<div class="fin-bottom-bar"><button class="fin-new-btn" id="rsNewBtn">+ Nuovo oggetto</button></div>';
-        document.getElementById('rsViewItems').onclick = () => { state.view = 'items'; renderContent(); };
-        document.getElementById('rsViewStats').onclick = () => { state.view = 'stats'; renderContent(); };
+        page.querySelectorAll('.rs-tab').forEach(btn => {
+            btn.onclick = () => { state.view = btn.getAttribute('data-view'); renderContent(); };
+        });
         document.getElementById('rsNewBtn').onclick = () => openItemModal(null);
     }
 
     function renderContent() {
-        if (!document.getElementById('rsViewItems')) return;
+        if (!document.getElementById('rsViewTodo')) return;
+        document.getElementById('rsViewTodo').classList.toggle('active', state.view === 'todo');
         document.getElementById('rsViewItems').classList.toggle('active', state.view === 'items');
         document.getElementById('rsViewStats').classList.toggle('active', state.view === 'stats');
         const c = document.getElementById('resellingContent');
-        if (state.view === 'items') renderItems(c); else renderStats(c);
+        if (state.view === 'todo') renderTodo(c);
+        else if (state.view === 'items') renderItems(c);
+        else renderStats(c);
     }
 
     // ---------- Oggetti ----------
@@ -277,28 +318,133 @@
         return list;
     }
 
-    function itemCardHtml(i) {
+    function visualCardHtml(i, mode) {
         const st = STATUS[i.status] || STATUS['in-vendita'];
+        const ph = mainPhoto(i);
         const sold = i.status === 'venduto';
-        const p = profitOf(i);
-        const right = sold
-            ? '<span class="item-profit" style="' + (p < 0 ? 'color:#E8604C;' : '') + '">' + (p >= 0 ? '+' : '') + eur(p) + '</span>'
-            : '<span class="item-badge">' + st.label + '</span>';
-        const sub = [i.brand, i.size, i.category].filter(Boolean).join(' \u00b7 ');
-        let meta = 'Acquisto ' + eur(i.buyPrice);
-        if (sold) meta += ' \u00b7 Vendita ' + eur(i.soldPrice) + ' \u00b7 margine ' + Math.round(marginOf(i)) + '% \u00b7 in ' + daysListed(i) + ' giorni';
-        else if (i.listPrice) meta += ' \u00b7 Prezzo ' + eur(i.listPrice);
-        return '<div class="item-card" style="--item-color:' + st.color + ';" data-id="' + i.id + '"><div class="item-top"><span class="item-name">' + esc(i.name) + '</span>' + right + '</div>' +
-            (sub ? '<p class="item-meta">' + esc(sub) + '</p>' : '') +
-            '<p class="item-meta">' + meta + (isStale(i) ? '<span class="rs-stale">\u23f3 da ' + daysListed(i) + ' giorni</span>' : '') + '</p></div>';
+        const stale = isStale(i);
+        let meta = '';
+        if (sold) meta = 'Venduto ' + eur(i.soldPrice) + ' · ' + (profitOf(i) >= 0 ? '+' : '') + eur(profitOf(i));
+        else if (i.status === 'da-pubblicare') meta = 'Acq. ' + eur(i.buyPrice) + (i.listPrice ? ' · Listino ' + eur(i.listPrice) : '');
+        else meta = (i.listPrice ? 'Prezzo ' + eur(i.listPrice) : 'Acq. ' + eur(i.buyPrice)) + (stale ? ' · ' + daysListed(i) + 'g' : '');
+
+        let actions = '';
+        if (mode === 'publish') {
+            actions = '<div class="rs-vcard-actions"><button type="button" class="primary rs-act" data-act="publish" data-id="' + i.id + '">Pubblica</button></div>';
+        } else if (mode === 'stale') {
+            actions = '<div class="rs-vcard-actions">' +
+                '<button type="button" class="primary rs-act" data-act="lower" data-id="' + i.id + '">Abbassa</button>' +
+                '<button type="button" class="rs-act" data-act="open" data-id="' + i.id + '">Apri</button></div>';
+        } else if (mode === 'selling') {
+            actions = '<div class="rs-vcard-actions"><button type="button" class="rs-act" data-act="open" data-id="' + i.id + '">Dettagli</button></div>';
+        }
+
+        return '<div class="rs-vcard" data-id="' + i.id + '">' +
+            '<div class="rs-vcard-ph">' +
+            (ph ? '<img src="' + attr(ph) + '" alt="" loading="lazy" />' : '<div class="rs-ph-empty">📷</div>') +
+            '<span class="rs-vcard-badge" style="background:' + st.color + ';">' + esc(st.label) + '</span>' +
+            '</div>' +
+            '<div class="rs-vcard-body">' +
+            '<div class="rs-vcard-name">' + esc(i.name || 'Senza nome') + '</div>' +
+            '<div class="rs-vcard-meta">' + esc(meta) + '</div>' +
+            '</div>' + actions +
+            '</div>';
+    }
+
+    function bindVisualCards(root) {
+        if (!root) return;
+        root.querySelectorAll('.rs-vcard').forEach(card => {
+            card.addEventListener('click', e => {
+                if (e.target.closest('.rs-act')) return;
+                const it = itemById(card.getAttribute('data-id'));
+                if (it) openItemModal(it);
+            });
+        });
+        root.querySelectorAll('.rs-act').forEach(btn => {
+            btn.addEventListener('click', async e => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                const act = btn.getAttribute('data-act');
+                const it = itemById(id);
+                if (!it) return;
+                if (act === 'open') { openItemModal(it); return; }
+                if (act === 'publish') {
+                    const copy = Object.assign({}, it, { status: 'in-vendita', listDate: it.listDate || todayStr() });
+                    if (await commitItem(copy)) { showToast('Pubblicato · in vendita', 'success'); renderContent(); }
+                    return;
+                }
+                if (act === 'lower') {
+                    openItemModal(it);
+                    return;
+                }
+            });
+        });
+    }
+
+    function itemCardHtml(i) {
+        return visualCardHtml(i, i.status === 'da-pubblicare' ? 'publish' : (isStale(i) ? 'stale' : (i.status === 'in-vendita' ? 'selling' : '')));
     }
 
     function drawList() {
         const el = document.getElementById('rsList');
         if (!el) return;
         const list = filteredItems();
-        el.innerHTML = list.length ? list.map(itemCardHtml).join('') : '<p class="empty-hint">' + (data.items.length ? 'Nessun oggetto con questi filtri' : 'Nessun oggetto ancora. Aggiungi il primo!') + '</p>';
-        el.querySelectorAll('.item-card').forEach(c => c.addEventListener('click', () => { const it = itemById(c.getAttribute('data-id')); if (it) openItemModal(it); }));
+        if (!list.length) {
+            el.innerHTML = '<p class="empty-hint">' + (data.items.length ? 'Nessun oggetto con questi filtri' : 'Nessun oggetto ancora. Aggiungi il primo!') + '</p>';
+            return;
+        }
+        el.innerHTML = '<div class="rs-grid">' + list.map(itemCardHtml).join('') + '</div>';
+        bindVisualCards(el);
+    }
+
+    function renderTodo(c) {
+        const t = totals();
+        const toPublish = data.items.filter(i => i.status === 'da-pubblicare');
+        const stale = data.items.filter(i => isStale(i)).sort((a, b) => daysListed(b) - daysListed(a));
+        const selling = data.items.filter(i => i.status === 'in-vendita' && !isStale(i));
+        const legacy = (fin.items || []).length;
+
+        let html = '';
+        if (!data.migrated && !data.items.length && legacy) {
+            html += '<div class="rs-banner"><span>Ho trovato <b>' + legacy + '</b> oggetti nel vecchio Reselling di Finanze.</span><button class="btn btn-primary" id="rsMigrate" style="flex:0 0 auto;">Importa</button></div>';
+        }
+        html += '<div class="resell-summary">' +
+            stat('Da pubblicare', toPublish.length) +
+            stat('Fermi +' + staleDays() + 'g', stale.length) +
+            stat('In vendita', selling.length + stale.length) +
+            stat('Investito', eur(t.invested)) +
+            '</div>';
+
+        if (!data.items.length) {
+            html += '<div class="wo-empty" style="text-align:center;padding:32px 12px;color:var(--text-muted);"><p>Inizia vendendo il primo oggetto</p></div>';
+            c.innerHTML = html;
+            const mig = document.getElementById('rsMigrate'); if (mig) mig.onclick = migrate;
+            return;
+        }
+
+        if (toPublish.length) {
+            html += '<div class="rs-sec-title">🔴 Da pubblicare <span class="rs-count">(' + toPublish.length + ')</span></div>';
+            html += '<div class="rs-grid">' + toPublish.map(i => visualCardHtml(i, 'publish')).join('') + '</div>';
+        }
+        if (stale.length) {
+            html += '<div class="rs-sec-title">🟡 Fermi da +' + staleDays() + ' giorni <span class="rs-count">(' + stale.length + ')</span></div>';
+            html += '<div class="rs-grid">' + stale.map(i => visualCardHtml(i, 'stale')).join('') + '</div>';
+        }
+        if (selling.length) {
+            const show = selling.slice(0, 6);
+            html += '<div class="rs-sec-title">🟢 In vendita <span class="rs-count">(' + selling.length + ')</span>' +
+                (selling.length > 6 ? ' <button type="button" class="rs-see-all" id="rsSeeAll">Vedi tutti</button>' : '') + '</div>';
+            html += '<div class="rs-grid">' + show.map(i => visualCardHtml(i, 'selling')).join('') + '</div>';
+        }
+        if (!toPublish.length && !stale.length && !selling.length) {
+            html += '<p class="empty-hint">Niente in sospeso: tutti gli oggetti sono venduti o archiviati.</p>';
+        }
+
+        c.innerHTML = html;
+        const mig = document.getElementById('rsMigrate'); if (mig) mig.onclick = migrate;
+        const see = document.getElementById('rsSeeAll');
+        if (see) see.onclick = () => { state.view = 'items'; state.status = 'in-vendita'; renderContent(); };
+        bindVisualCards(c);
     }
 
     function renderItems(c) {
@@ -364,7 +510,8 @@
 
         html += '<p class="section-label">Impostazioni</p>' +
             '<div class="split-row"><span class="split-label">Percentuale di profitto da reinvestire</span><input type="number" min="0" max="100" id="rsReinvest" value="' + data.settings.reinvestPct + '" /><span style="color:var(--text-muted);font-size:13px;">%</span></div>' +
-            '<div class="split-row"><span class="split-label">Margine obiettivo (per il prezzo minimo)</span><input type="number" min="0" max="90" id="rsTarget" value="' + data.settings.targetMarginPct + '" /><span style="color:var(--text-muted);font-size:13px;">%</span></div>';
+            '<div class="split-row"><span class="split-label">Margine obiettivo (per il prezzo minimo)</span><input type="number" min="0" max="90" id="rsTarget" value="' + data.settings.targetMarginPct + '" /><span style="color:var(--text-muted);font-size:13px;">%</span></div>' +
+            '<div class="split-row"><span class="split-label">Giorni prima di “fermo” (alert)</span><input type="number" min="1" max="120" id="rsStale" value="' + (data.settings.staleDays || 14) + '" /><span style="color:var(--text-muted);font-size:13px;">gg</span></div>';
         c.innerHTML = html;
 
         c.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => { state.period = b.getAttribute('data-p'); renderStats(c); }));
@@ -372,7 +519,7 @@
             let v = parseInt(e.target.value, 10); if (isNaN(v)) v = def;
             data.settings[key] = Math.max(0, Math.min(max, v)); saveData(); renderStats(c);
         });
-        setPct('rsReinvest', 'reinvestPct', 50, 100); setPct('rsTarget', 'targetMarginPct', 30, 90);
+        setPct('rsReinvest', 'reinvestPct', 50, 100); setPct('rsTarget', 'targetMarginPct', 30, 90); setPct('rsStale', 'staleDays', 14, 120);
         if (sold.length && typeof Chart !== 'undefined') drawCharts(sold, start, end);
     }
 
@@ -417,6 +564,12 @@
         const brands = Array.from(new Set(data.items.map(i => i.brand).filter(Boolean)));
         const cats = Array.from(new Set(CATEGORIES.concat(data.items.map(i => i.category).filter(Boolean))));
         const photos = [];
+        if (item && Array.isArray(item.photos)) {
+            item.photos.forEach(p => {
+                const url = typeof p === 'string' ? p : (p.dataUrl || p.url || '');
+                if (url) photos.push({ url, b64: url.indexOf(',') >= 0 ? url.split(',')[1] : '', dataUrl: url });
+            });
+        }
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
 
@@ -441,7 +594,7 @@
             '<div class="rs-ai"><label class="field-label" style="margin-top:0;">Descrizione per Vinted</label>' +
             '<div class="rs-photos" id="rPhotos"></div>' +
             '<button type="button" class="btn btn-ghost" id="rAddPh" style="width:100%;">Aggiungi foto (max ' + MAX_PHOTOS + ')</button><input type="file" id="rFile" accept="image/*" multiple style="display:none;" />' +
-            '<p class="rs-hint">Le foto servono solo a generare il testo e non vengono salvate.</p>' +
+            '<p class="rs-hint">Le foto vengono salvate sull\u2019oggetto (compressione automatica) e usate anche per l\u2019AI.</p>' +
             '<div class="row-2" style="margin-top:10px;"><button type="button" class="btn btn-primary" id="rGenAI">Genera con AI</button><button type="button" class="btn btn-ghost" id="rGenTpl">Da modello</button></div>' +
             '<p class="rs-hint" id="rMsg"></p>' +
             '<label class="field-label">Titolo</label><input type="text" id="rVTitle" value="' + attr(v.vTitle) + '" />' +
@@ -515,6 +668,8 @@
             if (isNaN(buy) || buy < 0) { q('#rBuy').style.borderColor = '#E8604C'; return null; }
             const copy = isEdit ? Object.assign({}, item) : { id: uid('it'), createdAt: new Date().toISOString(), status: 'da-pubblicare', soldPrice: null, soldDate: null, sellAccountId: null, sellTxId: null, buyTxId: null, costs: 0 };
             Object.assign(copy, fields(), { source: val('#rSource'), buyPrice: buy, buyAccountId: q('#rBuyAcc').value || null, buyDate: q('#rBuyDate').value || todayStr(), platform: q('#rPlat').value, vTitle: val('#rVTitle'), vDesc: q('#rVDesc').value.trim() });
+            copy.photos = photos.map(p => p.dataUrl || p.url).filter(Boolean).slice(0, MAX_PHOTOS);
+            copy.updatedAt = new Date().toISOString();
             if (!sold) {
                 const lp = q('#rList').value.trim() ? num(q('#rList').value) : null;
                 copy.listPrice = isNaN(lp) ? null : lp;
